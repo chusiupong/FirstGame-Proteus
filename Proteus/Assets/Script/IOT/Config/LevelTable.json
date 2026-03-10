@@ -1,0 +1,16 @@
+{
+  "levels": [
+    { "level": 1, "requiredExp": 0, "attackBonus": 0, "title": "Novice" },
+    { "level": 2, "requiredExp": 100, "attackBonus": 2, "title": "Beginner" },
+    { "level": 3, "requiredExp": 225, "attackBonus": 4, "title": "Apprentice" },
+    { "level": 4, "requiredExp": 380, "attackBonus": 6, "title": "Fighter" },
+    { "level": 5, "requiredExp": 565, "attackBonus": 8, "title": "Warrior" },
+    { "level": 6, "requiredExp": 780, "attackBonus": 10, "title": "Champion" },
+    { "level": 7, "requiredExp": 1025, "attackBonus": 12, "title": "Hero" },
+    { "level": 8, "requiredExp": 1300, "attackBonus": 14, "title": "Master" },
+    { "level": 9, "requiredExp": 1605, "attackBonus": 16, "title": "Legend" },
+    { "level": 10, "requiredExp": 1940, "attackBonus": 20, "title": "Grand Master" }
+  ],
+  "expFormula": "100 * level^1.5",
+  "notes": "Experience required increases exponentially to encourage consistent training"
+}
