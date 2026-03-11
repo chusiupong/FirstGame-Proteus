@@ -27,6 +27,7 @@ namespace FitnessGame.IOT
 
         /// <summary>
         /// Add training result from one action
+        /// Note: Level up logic is now handled by LevelCalculator
         /// </summary>
         public void AddTraining(MuscleData muscles, float expGain)
         {
@@ -40,31 +41,7 @@ namespace FitnessGame.IOT
             // Increment action count
             totalActionsPerformed++;
 
-            // Check for level up
-            CheckLevelUp();
-        }
-
-        /// <summary>
-        /// Check if player should level up
-        /// </summary>
-        private void CheckLevelUp()
-        {
-            while (experience >= experienceToNextLevel)
-            {
-                experience -= experienceToNextLevel;
-                level++;
-                experienceToNextLevel = CalculateExpForNextLevel(level);
-                Debug.Log($"🎉 LEVEL UP! Now Level {level}");
-            }
-        }
-
-        /// <summary>
-        /// Calculate experience required for next level
-        /// Simple formula: 100 * level^1.5
-        /// </summary>
-        private float CalculateExpForNextLevel(int currentLevel)
-        {
-            return 100f * Mathf.Pow(currentLevel, 1.5f);
+            // Note: CheckLevelUp is now handled externally by LevelCalculator
         }
 
         /// <summary>
@@ -74,21 +51,6 @@ namespace FitnessGame.IOT
         {
             sessionMuscles = new MuscleData();
             sessionTime = 0f;
-        }
-
-        /// <summary>
-        /// Get attack power bonus based on level and muscle strength
-        /// </summary>
-        public int GetAttackBonus()
-        {
-            // Level gives flat bonus
-            int levelBonus = (level - 1) * 2;
-
-            // Muscle strength gives additional bonus
-            // Focus on pulling muscles for attack power
-            float muscleBonus = (totalMuscles.latissimus + totalMuscles.biceps) / 50f;
-
-            return levelBonus + Mathf.FloorToInt(muscleBonus);
         }
 
         /// <summary>

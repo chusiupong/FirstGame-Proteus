@@ -8,22 +8,12 @@ namespace FitnessGame.IOT
     /// </summary>
     public class MuscleCalculator
     {
-        // Base muscle gains per action (at 100% quality)
-        private readonly MuscleData bowDrawMuscles = new MuscleData(
-            deltoid: 8f,      // High rear deltoid engagement
-            trapezius: 10f,   // Primary: scapular retraction
-            latissimus: 12f,  // Primary: pulling motion
-            rhomboid: 6f,     // Secondary: scapular stability
-            biceps: 7f        // Secondary: arm flexion
-        );
+        private FitnessConfig config;
 
-        private readonly MuscleData facePullMuscles = new MuscleData(
-            deltoid: 10f,     // Primary: rear deltoid
-            trapezius: 12f,   // Primary: scapular retraction
-            latissimus: 5f,   // Secondary: back engagement
-            rhomboid: 9f,     // Primary: rhomboid activation
-            biceps: 4f        // Secondary: arm pull
-        );
+        public MuscleCalculator(FitnessConfig config)
+        {
+            this.config = config;
+        }
 
         /// <summary>
         /// Calculate muscle training gains for an action
@@ -46,34 +36,17 @@ namespace FitnessGame.IOT
         }
 
         /// <summary>
-        /// Calculate experience points gained from training
-        /// Base EXP = total muscle gains × 2
-        /// </summary>
-        public float CalculateExpGain(MuscleData muscleGains, float quality)
-        {
-            float baseExp = muscleGains.GetTotal() * 2f;
-
-            // Quality bonus: S rank gets 50% more EXP
-            float qualityBonus = 1f;
-            if (quality >= 90f) qualityBonus = 1.5f;
-            else if (quality >= 75f) qualityBonus = 1.25f;
-            else if (quality >= 60f) qualityBonus = 1.1f;
-
-            return baseExp * qualityBonus;
-        }
-
-        /// <summary>
-        /// Get base muscle distribution for an action type
+        /// Get base muscle distribution for an action type from config
         /// </summary>
         private MuscleData GetBaseMusclesForAction(ActionType action)
         {
             switch (action)
             {
                 case ActionType.BowDraw:
-                    return bowDrawMuscles;
+                    return config.BowDrawMuscles;
                 
                 case ActionType.FacePull:
-                    return facePullMuscles;
+                    return config.FacePullMuscles;
                 
                 default:
                     return new MuscleData();

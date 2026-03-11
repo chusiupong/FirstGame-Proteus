@@ -13,7 +13,7 @@ namespace FitnessGame.IOT
         public void Initialize()
         {
             isInitialized = true;
-            Debug.Log("🎥 Mock Camera Initialized - Use Q=BowDraw, E=FacePull");
+            Debug.Log("🎥 Mock Camera Initialized - Q=BowDraw | E=FacePull");
         }
 
         public void Shutdown()

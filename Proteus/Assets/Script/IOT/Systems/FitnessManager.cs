@@ -15,9 +15,12 @@ namespace FitnessGame.IOT
         private ICameraInput cameraInput;
         private IMotorInput motorInput;
 
-        [Header("Processing Systems - DISABLED FOR NOW")]
-        // private QualityEvaluator qualityEvaluator;  // ⏸️ 暂时不用，等硬件来了再启用
-        // private MuscleCalculator muscleCalculator;  // ⏸️ 暂时不用，等硬件来了再启用
+        [Header("Processing Systems")]
+        private FitnessConfig config;
+        private QualityEvaluator qualityEvaluator;
+        private MuscleCalculator muscleCalculator;
+        private ExperienceCalculator experienceCalculator;
+        private LevelCalculator levelCalculator;
 
         [Header("Player Data")]
         public PlayerFitnessData playerData;
@@ -26,10 +29,9 @@ namespace FitnessGame.IOT
         public bool useMockData = true;  // Use mock data for testing
         public float actionCooldown = 0.5f;  // Minimum time between actions
 
-        [Header("Simple Test Values (Keyboard Mode)")]
-        public float simpleExpGain = 50f;  // 每次动作固定给50经验
-        public float simpleAttackPower = 15f;  // 每次攻击固定15伤害
-
+        [Header("Combat State")]
+        private bool inCombat = false;  // Is player currently in combat?
+        private float combatStartTime = 0f;  // When did combat start?
         private float lastActionTime = 0f;
         private ActionData currentAction;
 
@@ -70,67 +72,141 @@ namespace FitnessGame.IOT
             cameraInput.Initialize();
             motorInput.Initialize();
 
-            // Initialize processing systems - DISABLED FOR NOW
-            // qualityEvaluator = new QualityEvaluator();  // ⏸️ 暂时不用
-            // muscleCalculator = new MuscleCalculator();  // ⏸️ 暂时不用
+            // Initialize configuration
+            config = new FitnessConfig();
+
+            // Initialize processing systems
+            qualityEvaluator = new QualityEvaluator(config);
+            muscleCalculator = new MuscleCalculator(config);
+            experienceCalculator = new ExperienceCalculator(config);
+            levelCalculator = new LevelCalculator(config);
 
             // Initialize or load player data
             playerData = new PlayerFitnessData();
+            playerData.experienceToNextLevel = levelCalculator.CalculateExpForLevel(playerData.level);
             // TODO: Load from saved data
 
             currentAction = new ActionData();
 
             Debug.Log("✅ Fitness Manager Ready!");
+            Debug.Log("🎮 Controls: Q/E=Action | 1-5=Force | SPACE=Execute | T=Start Combat | Y=End Combat");
         }
 
         void Update()
         {
+            // Check for combat timeout
+            CheckCombatTimeout();
+            
             // Check for player actions every frame
             ProcessInput();
         }
 
         /// <summary>
+        /// Check if action timeout has been exceeded
+        /// Triggers MISS if player fails to act in time
+        /// </summary>
+        void CheckCombatTimeout()
+        {
+            if (!inCombat)
+                return;
+
+            float timeSinceLastAction = Time.time - (lastActionTime > 0 ? lastActionTime : combatStartTime);
+            
+            if (timeSinceLastAction >= config.ActionTimeout)
+            {
+                // MISS! Player took too long
+                TriggerMiss();
+            }
+        }
+
+        /// <summary>
+        /// Trigger a MISS event (timeout)
+        /// </summary>
+        void TriggerMiss()
+        {
+            Debug.LogWarning($"❌ MISS! No action within {config.ActionTimeout}s timeout!");
+            
+            // Continue combat but reset timer for next action
+            lastActionTime = Time.time;  // Reset timer to give player another chance
+            
+            Debug.Log($"⏱️ Next action timeout: {config.ActionTimeout}s - Keep fighting!");
+            
+            // TODO: Trigger miss penalty in game (e.g., take damage, lose combo)
+        }
+
+        /// <summary>
         /// Process input from camera and motor sensors
+        /// User must press SPACE to confirm action execution
         /// </summary>
         void ProcessInput()
         {
+            // Test key: T to start combat (for testing timeout)
+            if (Input.GetKeyDown(KeyCode.T) && !inCombat)
+            {
+                StartCombat();
+            }
+            
+            // Test key: Y to end combat
+            if (Input.GetKeyDown(KeyCode.Y) && inCombat)
+            {
+                EndCombat();
+            }
+            
             // Cooldown check
             if (Time.time - lastActionTime < actionCooldown)
                 return;
 
-            // Get data from both input sources
-            CameraData cameraData = cameraInput.GetCameraData();
-            MotorData motorData = motorInput.GetMotorData();
-
-            // Check if a valid action is detected
-            if (cameraData.IsValidAction() && motorData.IsActive())
+            // Only execute action when SPACE is pressed (confirmation)
+            if (Input.GetKeyDown(KeyCode.Space))
             {
-                // Process the action
-                ProcessAction(cameraData, motorData);
-                lastActionTime = Time.time;
+                // Get data from both input sources
+                CameraData cameraData = cameraInput.GetCameraData();
+                MotorData motorData = motorInput.GetMotorData();
+
+                // Check if a valid action is ready
+                if (cameraData.IsValidAction() && motorData.IsActive())
+                {
+                    // Check if in combat (only allow attacks during combat)
+                    if (!inCombat)
+                    {
+                        Debug.LogWarning("⚠️ Not in combat! Press T to start combat first.");
+                        return;
+                    }
+                    
+                    // Process the action
+                    ProcessAction(cameraData, motorData);
+                    lastActionTime = Time.time;
+                    
+                    // ✅ Reset motor state to prevent duration accumulation
+                    motorInput.Reset();
+                    
+                    // Restart combat timer for next action
+                    Debug.Log($"⏱️ Next action timeout: {config.ActionTimeout}s");
+                }
+                else
+                {
+                    Debug.LogWarning("⚠️ Action failed: Hold Q/E for action + 1-5 for force, then press SPACE");
+                }
             }
         }
 
         /// <summary>
         /// Process a detected action
-        /// SIMPLIFIED VERSION - Using fixed values for keyboard testing
+        /// Uses all calculators from Processing layer
         /// </summary>
         void ProcessAction(CameraData camera, MotorData motor)
         {
-            // ========== SIMPLIFIED VERSION (Keyboard Testing) ==========
-            // 暂时用固定值，不做复杂计算
-            
-            // Fixed quality for now
-            float quality = 75f;  // 假设质量都是75分
-            
-            // Simple muscle gains based on action type
-            MuscleData muscleGains = GetSimpleMuscleGains(camera.detectedAction);
-            
-            // Fixed experience
-            float expGain = simpleExpGain;
-            
-            // Fixed attack power
-            float attackPower = simpleAttackPower;
+            // ========== QUALITY EVALUATION ==========
+            float quality = qualityEvaluator.EvaluateQuality(camera, motor);
+
+            // ========== MUSCLE CALCULATION ==========
+            MuscleData muscleGains = muscleCalculator.CalculateMuscleGains(camera.detectedAction, quality);
+
+            // ========== EXPERIENCE CALCULATION ==========
+            float expGain = experienceCalculator.CalculateExpGain(muscleGains, quality);
+
+            // ========== ATTACK POWER CALCULATION ==========
+            float attackPower = qualityEvaluator.CalculateAttackPower(quality);
 
             // Create action data
             currentAction = new ActionData
@@ -145,46 +221,17 @@ namespace FitnessGame.IOT
             // Apply to player data
             playerData.AddTraining(muscleGains, expGain);
 
-            // Log the action (simplified)
-            Debug.Log($"💥 {camera.detectedAction} performed! | " +
-                      $"Attack: {attackPower:F1} | EXP: +{expGain:F1}");
+            // ========== LEVEL UP CHECK ==========
+            int levelsGained = levelCalculator.ProcessLevelUp(playerData);
+
+            // ========== LOGGING ==========
+            string grade = experienceCalculator.GetQualityGrade(quality);
+            Debug.Log($"💥 {camera.detectedAction} performed! Grade: {grade} | " +
+                      $"Quality: {quality:F1}% | Attack: {attackPower:F1} | EXP: +{expGain:F1}");
             Debug.Log($"🏋️ Muscles trained: {muscleGains}");
             Debug.Log($"📊 Level: {playerData.level} | EXP: {playerData.experience:F0}/{playerData.experienceToNextLevel:F0}");
 
             // TODO: Trigger game events (attack animation, damage calculation, etc.)
-        }
-
-        /// <summary>
-        /// Get simple fixed muscle gains for testing
-        /// 简单的固定肌肉增长值（用于测试）
-        /// </summary>
-        MuscleData GetSimpleMuscleGains(ActionType action)
-        {
-            switch (action)
-            {
-                case ActionType.BowDraw:
-                    // 拉弓：主要练背和手臂
-                    return new MuscleData(
-                        deltoid: 8f,
-                        trapezius: 10f,
-                        latissimus: 12f,
-                        rhomboid: 6f,
-                        biceps: 7f
-                    );
-                
-                case ActionType.FacePull:
-                    // Face Pull：主要练肩和上背
-                    return new MuscleData(
-                        deltoid: 10f,
-                        trapezius: 12f,
-                        latissimus: 5f,
-                        rhomboid: 9f,
-                        biceps: 4f
-                    );
-                
-                default:
-                    return new MuscleData();
-            }
         }
 
         /// <summary>
@@ -208,7 +255,51 @@ namespace FitnessGame.IOT
         /// </summary>
         public int GetPlayerAttackBonus()
         {
-            return playerData.GetAttackBonus();
+            return levelCalculator.GetTotalAttackBonus(playerData);
+        }
+
+        /// <summary>
+        /// Start combat encounter (called by combat system)
+        /// Begins the action timeout countdown
+        /// </summary>
+        public void StartCombat()
+        {
+            inCombat = true;
+            combatStartTime = Time.time;
+            lastActionTime = 0f;  // Reset last action time
+            
+            Debug.Log($"⚔️ Combat Started! Perform action within {config.ActionTimeout}s or MISS!");
+        }
+
+        /// <summary>
+        /// End combat encounter (called by combat system)
+        /// </summary>
+        public void EndCombat()
+        {
+            inCombat = false;
+            lastActionTime = 0f;
+            
+            Debug.Log("✌️ Combat Ended!");
+        }
+
+        /// <summary>
+        /// Get remaining time before timeout (for UI display)
+        /// </summary>
+        public float GetRemainingTime()
+        {
+            if (!inCombat)
+                return 0f;
+                
+            float timeSinceLastAction = Time.time - (lastActionTime > 0 ? lastActionTime : combatStartTime);
+            return Mathf.Max(0f, config.ActionTimeout - timeSinceLastAction);
+        }
+
+        /// <summary>
+        /// Check if currently in combat
+        /// </summary>
+        public bool IsInCombat()
+        {
+            return inCombat;
         }
 
         /// <summary>

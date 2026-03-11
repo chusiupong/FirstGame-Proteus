@@ -24,5 +24,11 @@ namespace FitnessGame.IOT
         /// Shutdown motor sensor
         /// </summary>
         void Shutdown();
+
+        /// <summary>
+        /// Reset motor state (force and duration)
+        /// Called after each action to prevent duration accumulation
+        /// </summary>
+        void Reset();
     }
 }

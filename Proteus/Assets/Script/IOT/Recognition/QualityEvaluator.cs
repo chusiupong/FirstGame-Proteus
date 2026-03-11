@@ -8,9 +8,17 @@ namespace FitnessGame.IOT
     /// </summary>
     public class QualityEvaluator
     {
+        private FitnessConfig config;
+
+        public QualityEvaluator(FitnessConfig config)
+        {
+            this.config = config;
+        }
+
         /// <summary>
         /// Evaluate action quality from camera and motor data
         /// Returns a score from 0-100
+        /// Quality = Camera Confidence × Force Multiplier
         /// </summary>
         public float EvaluateQuality(CameraData camera, MotorData motor)
         {
@@ -20,41 +28,26 @@ namespace FitnessGame.IOT
             // Base score from camera confidence (0-1 → 0-100)
             float poseScore = camera.confidence * 100f;
 
-            // Force factor (0-100 force → 0.5-1.5 multiplier)
-            // Minimum 50% even with low force, maximum 150% with high force
-            float forceFactor = 0.5f + (motor.force / 100f);
+            // Force multiplier: 0.5x to 1.5x based on force (0-100)
+            // Formula: 0.5 + (force/100) * 1.0 = range [0.5, 1.5]
+            float forceMultiplier = config.MinForceMultiplier + (motor.force / 100f) * (config.MaxForceMultiplier - config.MinForceMultiplier);
 
-            // Duration bonus: reward sustained effort (max 20% bonus)
-            float durationBonus = Mathf.Min(motor.duration * 5f, 20f);
-
-            // Final quality = base × force factor + duration bonus
-            float quality = (poseScore * forceFactor) + durationBonus;
+            // Final quality = pose score × force multiplier
+            float quality = poseScore * forceMultiplier;
 
             // Clamp to 0-100
             return Mathf.Clamp(quality, 0f, 100f);
         }
 
         /// <summary>
-        /// Get quality grade (S/A/B/C/F)
-        /// </summary>
-        public string GetQualityGrade(float quality)
-        {
-            if (quality >= 90f) return "S";
-            if (quality >= 75f) return "A";
-            if (quality >= 60f) return "B";
-            if (quality >= 40f) return "C";
-            return "F";
-        }
-
-        /// <summary>
         /// Calculate attack power based on quality
         /// Higher quality = stronger attack
         /// </summary>
-        public float CalculateAttackPower(float quality, int baseAttack = 10)
+        public float CalculateAttackPower(float quality)
         {
             // Quality 0-100 → 0.5x to 2.0x multiplier
             float multiplier = 0.5f + (quality / 100f) * 1.5f;
-            return baseAttack * multiplier;
+            return config.BaseAttackDamage * multiplier;
         }
     }
 }
