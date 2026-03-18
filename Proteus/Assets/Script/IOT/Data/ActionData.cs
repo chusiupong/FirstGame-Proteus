@@ -9,7 +9,6 @@ namespace FitnessGame.IOT
     [Serializable]
     public class ActionData
     {
-        public ActionType actionType;
         public float qualityScore;      // 0-100, combined from camera and motor
         public float attackPower;       // Calculated attack power for this action
         public MuscleData muscleGain;   // Muscle training from this action
@@ -17,7 +16,6 @@ namespace FitnessGame.IOT
 
         public ActionData()
         {
-            actionType = ActionType.None;
             qualityScore = 0f;
             attackPower = 0f;
             muscleGain = new MuscleData();
@@ -26,12 +24,12 @@ namespace FitnessGame.IOT
 
         public bool IsValid()
         {
-            return actionType != ActionType.None && qualityScore > 0f;
+            return qualityScore > 0f;
         }
 
         public override string ToString()
         {
-            return $"Action [{actionType} Quality:{qualityScore:F1}% Attack:{attackPower:F1} EXP:{expGain:F1}]";
+            return $"Action [BowDraw Quality:{qualityScore:F1}% Attack:{attackPower:F1} EXP:{expGain:F1}]";
         }
     }
 }

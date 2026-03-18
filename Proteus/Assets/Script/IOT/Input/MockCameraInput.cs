@@ -13,7 +13,7 @@ namespace FitnessGame.IOT
         public void Initialize()
         {
             isInitialized = true;
-            Debug.Log("🎥 Mock Camera Initialized - Q=BowDraw | E=FacePull");
+            Debug.Log("🎥 Mock Camera Initialized - Q=BowDraw");
         }
 
         public void Shutdown()
@@ -34,21 +34,15 @@ namespace FitnessGame.IOT
 
             // Keyboard simulation:
             // Q = Bow Draw action
-            // E = Face Pull action
             
             if (Input.GetKey(KeyCode.Q))
             {
                 // Simulate bow draw detection
-                return new CameraData(ActionType.BowDraw, 0.85f);
-            }
-            else if (Input.GetKey(KeyCode.E))
-            {
-                // Simulate face pull detection
-                return new CameraData(ActionType.FacePull, 0.90f);
+                return new CameraData(0.85f);
             }
 
             // No action detected
-            return new CameraData(ActionType.None, 0f);
+            return new CameraData(0f);
         }
     }
 }

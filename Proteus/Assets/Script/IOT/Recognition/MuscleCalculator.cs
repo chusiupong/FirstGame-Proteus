@@ -16,12 +16,12 @@ namespace FitnessGame.IOT
         }
 
         /// <summary>
-        /// Calculate muscle training gains for an action
+        /// Calculate muscle training gains for BowDraw action
         /// </summary>
-        public MuscleData CalculateMuscleGains(ActionType action, float quality)
+        public MuscleData CalculateMuscleGains(float quality)
         {
-            // Get base muscle distribution for this action
-            MuscleData baseMuscles = GetBaseMusclesForAction(action);
+            // Get base muscle distribution for bow draw
+            MuscleData baseMuscles = config.BowDrawMuscles;
 
             // Scale by quality (0-100% quality = 0-100% gains)
             float qualityFactor = quality / 100f;
@@ -36,39 +36,11 @@ namespace FitnessGame.IOT
         }
 
         /// <summary>
-        /// Get base muscle distribution for an action type from config
+        /// Get primary muscle groups for UI display
         /// </summary>
-        private MuscleData GetBaseMusclesForAction(ActionType action)
+        public string GetPrimaryMuscles()
         {
-            switch (action)
-            {
-                case ActionType.BowDraw:
-                    return config.BowDrawMuscles;
-                
-                case ActionType.FacePull:
-                    return config.FacePullMuscles;
-                
-                default:
-                    return new MuscleData();
-            }
-        }
-
-        /// <summary>
-        /// Get primary muscle groups for an action (for UI display)
-        /// </summary>
-        public string GetPrimaryMuscles(ActionType action)
-        {
-            switch (action)
-            {
-                case ActionType.BowDraw:
-                    return "Latissimus, Trapezius, Deltoid";
-                
-                case ActionType.FacePull:
-                    return "Trapezius, Deltoid, Rhomboid";
-                
-                default:
-                    return "None";
-            }
+            return "Latissimus, Trapezius, Deltoid";
         }
     }
 }

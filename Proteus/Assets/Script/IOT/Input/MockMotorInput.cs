@@ -60,5 +60,13 @@ namespace FitnessGame.IOT
         {
             // No state to reset anymore
         }
+
+        /// <summary>
+        /// Send command to motor (mock - just log)
+        /// </summary>
+        public void SendCommand(MotorCommandPacket packet)
+        {
+            Debug.Log($"💪 [MOCK] Motor command sent: {packet.ToString()}");
+        }
     }
 }

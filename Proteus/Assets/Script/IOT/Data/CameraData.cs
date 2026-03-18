@@ -9,27 +9,23 @@ namespace FitnessGame.IOT
     [Serializable]
     public class CameraData
     {
-        public ActionType detectedAction;   // Which action is detected
         public float confidence;            // Confidence score (0-1)
-        public bool isPoseCorrect;          // Is the pose correct?
         public float timestamp;
 
-        public CameraData(ActionType action = ActionType.None, float confidence = 0f)
+        public CameraData(float confidence = 0f)
         {
-            this.detectedAction = action;
             this.confidence = Mathf.Clamp01(confidence);
-            this.isPoseCorrect = confidence > 0.7f;  // 70% threshold
             this.timestamp = Time.time;
         }
 
         public bool IsValidAction()
         {
-            return detectedAction != ActionType.None && isPoseCorrect;
+            return confidence > 0.7f;  // 70% threshold
         }
 
         public override string ToString()
         {
-            return $"Camera [{detectedAction} Confidence:{confidence:P0} Valid:{isPoseCorrect}]";
+            return $"Camera [Confidence:{confidence:P0} Valid:{IsValidAction()}]";
         }
     }
 }

@@ -21,17 +21,6 @@ namespace FitnessGame.IOT
             biceps: 7f        // Arm flexion
         );
 
-        /// <summary>
-        /// Base muscle gains for Face Pull action (at 100% quality)
-        /// </summary>
-        public MuscleData FacePullMuscles = new MuscleData(
-            deltoid: 10f,     // Primary rear deltoid focus
-            trapezius: 12f,   // Primary upper back
-            latissimus: 5f,   // Secondary back engagement
-            rhomboid: 9f,     // Primary rhomboid activation
-            biceps: 4f        // Secondary arm pull
-        );
-
         // ==================== EXPERIENCE CONFIGURATION ====================
         
         /// <summary>
@@ -86,13 +75,30 @@ namespace FitnessGame.IOT
         /// </summary>
         public int BaseAttackDamage = 10;
 
-        // ==================== COMBAT TIMING ====================
+        // ==================== ROUND TIMING ====================
         
         /// <summary>
         /// Action timeout in seconds
-        /// If no action is performed within this time during combat, it's a MISS
+        /// If no action is performed within this time during a round, it's a MISS
         /// </summary>
         public float ActionTimeout = 5f;
+
+        // ==================== MOTOR POWER CONTROL ====================
+        
+        /// <summary>
+        /// Auto power on motor when a round starts
+        /// </summary>
+        public bool AutoPowerOnMotor = true;
+
+        /// <summary>
+        /// Auto power off motor when a round ends
+        /// </summary>
+        public bool AutoPowerOffMotor = true;
+
+        /// <summary>
+        /// Which motors to control (0=Motor1, 1=Motor2, 2=Both)
+        /// </summary>
+        public byte MotorControlTarget = 2;
 
         // ==================== QUALITY THRESHOLDS ====================
         

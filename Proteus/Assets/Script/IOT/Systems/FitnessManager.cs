@@ -1,26 +1,23 @@
+using System;
 using UnityEngine;
 
 namespace FitnessGame.IOT
 {
     /// <summary>
-    /// Main fitness system manager - coordinates all IoT components
-    /// Singleton pattern for easy access from game code
+    /// Orchestrates the IoT pipeline for one player round:
+    /// input capture -> action resolution -> round state/timing.
     /// </summary>
     public class FitnessManager : MonoBehaviour
     {
+        public event Action<ActionData> OnActionResolved;
+
         // Singleton instance
         public static FitnessManager Instance { get; private set; }
 
-        [Header("Input Systems")]
-        private ICameraInput cameraInput;
-        private IMotorInput motorInput;
-
-        [Header("Processing Systems")]
         private FitnessConfig config;
-        private QualityEvaluator qualityEvaluator;
-        private MuscleCalculator muscleCalculator;
-        private ExperienceCalculator experienceCalculator;
-        private LevelCalculator levelCalculator;
+        private FitnessInputCollector inputCollector;
+        private RoundWindowController roundWindow;
+        private ActionResolutionService resolutionService;
 
         [Header("Player Data")]
         public PlayerFitnessData playerData;
@@ -29,11 +26,8 @@ namespace FitnessGame.IOT
         public bool useMockData = true;  // Use mock data for testing
         public float actionCooldown = 0.5f;  // Minimum time between actions
 
-        [Header("Combat State")]
-        private bool inCombat = false;  // Is player currently in combat?
-        private float combatStartTime = 0f;  // When did combat start?
-        private float lastActionTime = 0f;
-        private ActionData currentAction;
+        [Header("Round State")]
+        private ActionData lastResolvedAction;
 
         void Awake()
         {
@@ -52,69 +46,39 @@ namespace FitnessGame.IOT
 
         void Initialize()
         {
-            Debug.Log("🎮 Fitness Manager Initializing...");
+            Debug.Log("[IOT] FitnessManager initializing...");
 
-            // Initialize input systems
-            if (useMockData)
-            {
-                cameraInput = new MockCameraInput();
-                motorInput = new MockMotorInput();
-                Debug.Log("📝 Using MOCK data for testing");
-            }
-            else
-            {
-                // TODO: Initialize real hardware when available
-                Debug.LogWarning("⚠️ Real hardware not implemented yet");
-                cameraInput = new MockCameraInput();
-                motorInput = new MockMotorInput();
-            }
-
-            cameraInput.Initialize();
-            motorInput.Initialize();
-
-            // Initialize configuration
             config = new FitnessConfig();
+            inputCollector = new FitnessInputCollector(useMockData);
+            roundWindow = new RoundWindowController();
+            resolutionService = new ActionResolutionService(config);
 
-            // Initialize processing systems
-            qualityEvaluator = new QualityEvaluator(config);
-            muscleCalculator = new MuscleCalculator(config);
-            experienceCalculator = new ExperienceCalculator(config);
-            levelCalculator = new LevelCalculator(config);
+            inputCollector.Initialize();
 
             // Initialize or load player data
             playerData = new PlayerFitnessData();
-            playerData.experienceToNextLevel = levelCalculator.CalculateExpForLevel(playerData.level);
+            playerData.experienceToNextLevel = resolutionService.CalculateExpForLevel(playerData.level);
             // TODO: Load from saved data
 
-            currentAction = new ActionData();
+            lastResolvedAction = new ActionData();
 
-            Debug.Log("✅ Fitness Manager Ready!");
-            Debug.Log("🎮 Controls: Q/E=Action | 1-5=Force | SPACE=Execute | T=Start Combat | Y=End Combat");
+            Debug.Log("[IOT] FitnessManager ready");
+            Debug.Log("[IOT] Awaiting round control and action confirmation from external caller");
         }
 
         void Update()
         {
-            // Check for combat timeout
-            CheckCombatTimeout();
-            
-            // Check for player actions every frame
-            ProcessInput();
+            // Check for round timeout
+            CheckRoundTimeout();
         }
 
         /// <summary>
-        /// Check if action timeout has been exceeded
-        /// Triggers MISS if player fails to act in time
+        /// Check if action timeout has been exceeded inside an active round.
         /// </summary>
-        void CheckCombatTimeout()
+        void CheckRoundTimeout()
         {
-            if (!inCombat)
-                return;
-
-            float timeSinceLastAction = Time.time - (lastActionTime > 0 ? lastActionTime : combatStartTime);
-            
-            if (timeSinceLastAction >= config.ActionTimeout)
+            if (roundWindow.TryConsumeTimeout(Time.time, config.ActionTimeout))
             {
-                // MISS! Player took too long
                 TriggerMiss();
             }
         }
@@ -124,212 +88,178 @@ namespace FitnessGame.IOT
         /// </summary>
         void TriggerMiss()
         {
-            Debug.LogWarning($"❌ MISS! No action within {config.ActionTimeout}s timeout!");
-            
-            // Continue combat but reset timer for next action
-            lastActionTime = Time.time;  // Reset timer to give player another chance
-            
-            Debug.Log($"⏱️ Next action timeout: {config.ActionTimeout}s - Keep fighting!");
-            
+            Debug.LogWarning($"[IOT][Round] MISS: no valid action within {config.ActionTimeout:F1}s");
+            Debug.Log($"[IOT][Round] Timer reset. Next timeout: {config.ActionTimeout:F1}s");
+
             // TODO: Trigger miss penalty in game (e.g., take damage, lose combo)
         }
 
         /// <summary>
-        /// Process input from camera and motor sensors
-        /// User must press SPACE to confirm action execution
+        /// Camera-only action detection check.
         /// </summary>
-        void ProcessInput()
+        public bool IsActionDetected()
         {
-            // Test key: T to start combat (for testing timeout)
-            if (Input.GetKeyDown(KeyCode.T) && !inCombat)
-            {
-                StartCombat();
-            }
-            
-            // Test key: Y to end combat
-            if (Input.GetKeyDown(KeyCode.Y) && inCombat)
-            {
-                EndCombat();
-            }
-            
-            // Cooldown check
-            if (Time.time - lastActionTime < actionCooldown)
-                return;
-
-            // Only execute action when SPACE is pressed (confirmation)
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                // Get data from both input sources
-                CameraData cameraData = cameraInput.GetCameraData();
-                MotorData motorData = motorInput.GetMotorData();
-
-                // Check if a valid action is ready
-                if (cameraData.IsValidAction() && motorData.IsActive())
-                {
-                    // Check if in combat (only allow attacks during combat)
-                    if (!inCombat)
-                    {
-                        Debug.LogWarning("⚠️ Not in combat! Press T to start combat first.");
-                        return;
-                    }
-                    
-                    // Process the action
-                    ProcessAction(cameraData, motorData);
-                    lastActionTime = Time.time;
-                    
-                    // ✅ Reset motor state to prevent duration accumulation
-                    motorInput.Reset();
-                    
-                    // Restart combat timer for next action
-                    Debug.Log($"⏱️ Next action timeout: {config.ActionTimeout}s");
-                }
-                else
-                {
-                    Debug.LogWarning("⚠️ Action failed: Hold Q/E for action + 1-5 for force, then press SPACE");
-                }
-            }
+            inputCollector.ReadRawData(out CameraData cameraData, out _);
+            return resolutionService.IsActionDetected(cameraData);
         }
 
         /// <summary>
-        /// Process a detected action
-        /// Uses all calculators from Processing layer
+        /// Try resolving one action from current sensor data.
+        /// Returns true when an action is successfully resolved.
         /// </summary>
-        void ProcessAction(CameraData camera, MotorData motor)
+        public bool TryResolveCurrentAction()
         {
-            // ========== QUALITY EVALUATION ==========
-            float quality = qualityEvaluator.EvaluateQuality(camera, motor);
+            if (!roundWindow.IsActionReady(Time.time, actionCooldown))
+                return false;
 
-            // ========== MUSCLE CALCULATION ==========
-            MuscleData muscleGains = muscleCalculator.CalculateMuscleGains(camera.detectedAction, quality);
+            inputCollector.ReadRawData(out CameraData cameraData, out MotorData motorData);
 
-            // ========== EXPERIENCE CALCULATION ==========
-            float expGain = experienceCalculator.CalculateExpGain(muscleGains, quality);
+            if (!resolutionService.IsActionDetected(cameraData))
+                return false;
 
-            // ========== ATTACK POWER CALCULATION ==========
-            float attackPower = qualityEvaluator.CalculateAttackPower(quality);
-
-            // Create action data
-            currentAction = new ActionData
+            if (!roundWindow.RoundActive)
             {
-                actionType = camera.detectedAction,
-                qualityScore = quality,
-                attackPower = attackPower,
-                muscleGain = muscleGains,
-                expGain = expGain
-            };
+                Debug.LogWarning("[IOT][Round] Action ignored: round is not active. Call RoundStart first.");
+                return false;
+            }
 
-            // Apply to player data
-            playerData.AddTraining(muscleGains, expGain);
+            ResolveAction(cameraData, motorData);
+            roundWindow.MarkActionResolved(Time.time);
 
-            // ========== LEVEL UP CHECK ==========
-            int levelsGained = levelCalculator.ProcessLevelUp(playerData);
+            // Reset motor state to prevent force accumulation across actions
+            inputCollector.ResetMotorState();
+
+            // Restart round timeout for next action
+            Debug.Log($"[IOT][Round] Action resolved. Next timeout: {config.ActionTimeout:F1}s");
+            return true;
+        }
+
+        /// <summary>
+        /// Resolve one valid action and publish the result.
+        /// </summary>
+        void ResolveAction(CameraData camera, MotorData motor)
+        {
+            lastResolvedAction = resolutionService.Resolve(camera, motor, playerData);
+
+            OnActionResolved?.Invoke(lastResolvedAction);
 
             // ========== LOGGING ==========
-            string grade = experienceCalculator.GetQualityGrade(quality);
-            Debug.Log($"💥 {camera.detectedAction} performed! Grade: {grade} | " +
-                      $"Quality: {quality:F1}% | Attack: {attackPower:F1} | EXP: +{expGain:F1}");
-            Debug.Log($"🏋️ Muscles trained: {muscleGains}");
-            Debug.Log($"📊 Level: {playerData.level} | EXP: {playerData.experience:F0}/{playerData.experienceToNextLevel:F0}");
+            string grade = resolutionService.GetQualityGrade(lastResolvedAction.qualityScore);
+            Debug.Log($"[IOT][Action] BowDraw resolved. Grade: {grade} | " +
+                      $"Quality: {lastResolvedAction.qualityScore:F1}% | Attack: {lastResolvedAction.attackPower:F1} | EXP: +{lastResolvedAction.expGain:F1}");
+            Debug.Log($"[IOT][Action] Muscles trained: {lastResolvedAction.muscleGain}");
+            Debug.Log($"[IOT][Player] Level: {playerData.level} | EXP: {playerData.experience:F0}/{playerData.experienceToNextLevel:F0}");
 
             // TODO: Trigger game events (attack animation, damage calculation, etc.)
         }
 
         /// <summary>
-        /// Get the last performed action data (for combat system)
-        /// </summary>
-        public ActionData GetLastAction()
-        {
-            return currentAction;
-        }
-
-        /// <summary>
-        /// Get attack power for current action
-        /// </summary>
-        public float GetCurrentAttackPower()
-        {
-            return currentAction.attackPower;
-        }
-
-        /// <summary>
         /// Get player's level-based attack bonus
         /// </summary>
-        public int GetPlayerAttackBonus()
-        {
-            return levelCalculator.GetTotalAttackBonus(playerData);
-        }
+        public int AttackBonus => resolutionService.GetAttackBonus(playerData);
 
         /// <summary>
-        /// Start combat encounter (called by combat system)
-        /// Begins the action timeout countdown
+        /// Start one player round window.
+        /// Enables timeout and optionally powers on the motor.
         /// </summary>
-        public void StartCombat()
+        public void RoundStart()
         {
-            inCombat = true;
-            combatStartTime = Time.time;
-            lastActionTime = 0f;  // Reset last action time
+            roundWindow.RoundStart(Time.time);
             
-            Debug.Log($"⚔️ Combat Started! Perform action within {config.ActionTimeout}s or MISS!");
-        }
-
-        /// <summary>
-        /// End combat encounter (called by combat system)
-        /// </summary>
-        public void EndCombat()
-        {
-            inCombat = false;
-            lastActionTime = 0f;
+            // Auto power on motor if enabled
+            if (config.AutoPowerOnMotor)
+            {
+                PowerOnMotor();
+            }
             
-            Debug.Log("✌️ Combat Ended!");
+            Debug.Log($"[IOT][Round] START. Timeout: {config.ActionTimeout:F1}s");
         }
 
         /// <summary>
-        /// Get remaining time before timeout (for UI display)
+        /// End current player round window.
+        /// Disables timeout and optionally powers off the motor.
         /// </summary>
-        public float GetRemainingTime()
+        public void RoundEnd()
         {
-            if (!inCombat)
-                return 0f;
-                
-            float timeSinceLastAction = Time.time - (lastActionTime > 0 ? lastActionTime : combatStartTime);
-            return Mathf.Max(0f, config.ActionTimeout - timeSinceLastAction);
+            roundWindow.RoundEnd();
+            
+            // Auto power off motor if enabled
+            if (config.AutoPowerOffMotor)
+            {
+                PowerOffMotor();
+            }
+            
+            Debug.Log("[IOT][Round] END");
         }
 
         /// <summary>
-        /// Check if currently in combat
+        /// Send power-on command to motor and switch to work mode.
         /// </summary>
-        public bool IsInCombat()
+        public void PowerOnMotor()
         {
-            return inCombat;
+            if (inputCollector.PowerOnMotor(config.MotorControlTarget))
+            {
+                Debug.Log("[IOT][Motor] Power ON + WorkMode configured");
+            }
+            else
+            {
+                Debug.Log("[IOT][Motor] Power already ON");
+            }
         }
+
+        /// <summary>
+        /// Send power-off command to motor.
+        /// </summary>
+        public void PowerOffMotor()
+        {
+            if (inputCollector.PowerOffMotor(config.MotorControlTarget))
+            {
+                Debug.Log("[IOT][Motor] Power OFF");
+            }
+            else
+            {
+                Debug.Log("[IOT][Motor] Power already OFF");
+            }
+        }
+
+        /// <summary>
+        /// Returns current motor power state tracked by FitnessManager.
+        /// </summary>
+        public bool IsMotorPowered()
+        {
+            return inputCollector.MotorPowered;
+        }
+
+        public float RemainingTime
+        {
+            get
+            {
+                return roundWindow.GetRemainingTime(Time.time, config.ActionTimeout);
+            }
+        }
+
+        public bool RoundActive => roundWindow.RoundActive;
 
         /// <summary>
         /// Check if action is ready (cooldown finished)
         /// </summary>
         public bool IsActionReady()
         {
-            return Time.time - lastActionTime >= actionCooldown;
+            return roundWindow.IsActionReady(Time.time, actionCooldown);
         }
 
         void OnDestroy()
         {
             // Cleanup
-            if (cameraInput != null)
-                cameraInput.Shutdown();
-            if (motorInput != null)
-                motorInput.Shutdown();
+            if (inputCollector != null)
+                inputCollector.Shutdown();
             
             // TODO: Save player data
         }
 
         // === Public API for other systems ===
 
-        /// <summary>
-        /// Get current player fitness data
-        /// </summary>
-        public PlayerFitnessData GetPlayerData()
-        {
-            return playerData;
-        }
+        public PlayerFitnessData PlayerData => playerData;
 
         /// <summary>
         /// Force save player data
@@ -337,7 +267,7 @@ namespace FitnessGame.IOT
         public void SavePlayerData()
         {
             // TODO: Implement data persistence
-            Debug.Log("💾 Player data saved");
+            Debug.Log("[IOT][Player] Data saved");
         }
     }
 }

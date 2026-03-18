@@ -30,5 +30,11 @@ namespace FitnessGame.IOT
         /// Called after each action to prevent duration accumulation
         /// </summary>
         void Reset();
+
+        /// <summary>
+        /// Send command packet to motor
+        /// Used for power control and mode switching
+        /// </summary>
+        void SendCommand(MotorCommandPacket packet);
     }
 }

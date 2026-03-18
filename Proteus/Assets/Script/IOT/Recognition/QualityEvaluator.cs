@@ -3,12 +3,13 @@ using UnityEngine;
 namespace FitnessGame.IOT
 {
     /// <summary>
-    /// Evaluates action quality based on camera pose and motor force
-    /// Quality Score = Pose Correctness × Force Factor
+    /// Centralized action algorithm module.
+    /// - Action detection: camera only
+    /// - Quality scoring: camera + motor (+ optional IMU score)
     /// </summary>
     public class QualityEvaluator
     {
-        private FitnessConfig config;
+        private readonly FitnessConfig config;
 
         public QualityEvaluator(FitnessConfig config)
         {
@@ -16,13 +17,24 @@ namespace FitnessGame.IOT
         }
 
         /// <summary>
-        /// Evaluate action quality from camera and motor data
-        /// Returns a score from 0-100
-        /// Quality = Camera Confidence × Force Multiplier
+        /// Detect whether an action is present using camera data only.
         /// </summary>
-        public float EvaluateQuality(CameraData camera, MotorData motor)
+        public bool IsActionDetected(CameraData camera)
         {
-            if (!camera.IsValidAction() || !motor.IsActive())
+            if (camera == null)
+                return false;
+
+            return camera.IsValidAction();
+        }
+
+        /// <summary>
+        /// Evaluate action quality from camera/motor and optional IMU score.
+        /// Returns a score in [0, 100].
+        /// </summary>
+        /// <param name="imuScore01">Optional IMU quality in [0,1]. Use 1 when unavailable.</param>
+        public float EvaluateActionQuality(CameraData camera, MotorData motor, float imuScore01 = 1f)
+        {
+            if (!IsActionDetected(camera))
                 return 0f;
 
             // Base score from camera confidence (0-1 → 0-100)
@@ -32,8 +44,11 @@ namespace FitnessGame.IOT
             // Formula: 0.5 + (force/100) * 1.0 = range [0.5, 1.5]
             float forceMultiplier = config.MinForceMultiplier + (motor.force / 100f) * (config.MaxForceMultiplier - config.MinForceMultiplier);
 
-            // Final quality = pose score × force multiplier
-            float quality = poseScore * forceMultiplier;
+            // IMU factor in [0,1], currently defaulted to 1 when no IMU is integrated.
+            float imuFactor = Mathf.Clamp01(imuScore01);
+
+            // Final quality = pose score × force multiplier × imu factor
+            float quality = poseScore * forceMultiplier * imuFactor;
 
             // Clamp to 0-100
             return Mathf.Clamp(quality, 0f, 100f);
