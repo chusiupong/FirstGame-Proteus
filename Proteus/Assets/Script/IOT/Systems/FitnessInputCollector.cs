@@ -10,24 +10,30 @@ namespace FitnessGame.IOT
     {
         private readonly ICameraInput cameraInput;
         private readonly IMotorInput motorInput;
+        private readonly IIMUInput imuInput;
+        private readonly Esp32SensorClient esp32Client;
         private bool motorPowered;
 
         public bool MotorPowered => motorPowered;
 
-        public FitnessInputCollector(bool useMockData)
+        public FitnessInputCollector(bool useMockData, FitnessConfig config)
         {
             if (useMockData)
             {
                 cameraInput = new MockCameraInput();
                 motorInput = new MockMotorInput();
-                Debug.Log("[IOT][Input] Using MOCK camera/motor inputs");
+                imuInput = new MockIMUData();
+                Debug.Log("[IOT][Input] Using MOCK camera/motor/imu inputs");
             }
             else
             {
-                // TODO: Replace with real hardware adapters.
-                Debug.LogWarning("[IOT][Input] Real hardware adapters not implemented, fallback to mock");
-                cameraInput = new MockCameraInput();
-                motorInput = new MockMotorInput();
+                esp32Client = new Esp32SensorClient(config.Esp32PortName, config.Esp32BaudRate);
+
+                cameraInput = new TeammateCameraInput(config.CameraPortName, config.CameraBaudRate);
+                motorInput = new Esp32MotorInput(esp32Client);
+                imuInput = new Esp32IMUInput(esp32Client);
+
+                Debug.Log($"[IOT][Input] Using REAL motor/imu via ESP32 {config.Esp32PortName}@{config.Esp32BaudRate}, camera adapter pending integration");
             }
         }
 
@@ -35,18 +41,29 @@ namespace FitnessGame.IOT
         {
             cameraInput.Initialize();
             motorInput.Initialize();
+            imuInput.Initialize();
         }
 
         public void Shutdown()
         {
             cameraInput.Shutdown();
             motorInput.Shutdown();
+            imuInput.Shutdown();
+        }
+
+        public SensorFrame ReadSensorFrame()
+        {
+            CameraData cameraData = cameraInput.GetCameraData();
+            MotorData motorData = motorInput.GetMotorData();
+            IMUData imuData = imuInput.GetIMUData();
+            return new SensorFrame(cameraData, motorData, imuData);
         }
 
         public void ReadRawData(out CameraData cameraData, out MotorData motorData)
         {
-            cameraData = cameraInput.GetCameraData();
-            motorData = motorInput.GetMotorData();
+            SensorFrame frame = ReadSensorFrame();
+            cameraData = frame.camera;
+            motorData = frame.motor;
         }
 
         public bool IsActionDetected(CameraData cameraData)

@@ -49,7 +49,7 @@ namespace FitnessGame.IOT
             Debug.Log("[IOT] FitnessManager initializing...");
 
             config = new FitnessConfig();
-            inputCollector = new FitnessInputCollector(useMockData);
+            inputCollector = new FitnessInputCollector(useMockData, config);
             roundWindow = new RoundWindowController();
             resolutionService = new ActionResolutionService(config);
 
@@ -99,8 +99,8 @@ namespace FitnessGame.IOT
         /// </summary>
         public bool IsActionDetected()
         {
-            inputCollector.ReadRawData(out CameraData cameraData, out _);
-            return resolutionService.IsActionDetected(cameraData);
+            SensorFrame frame = inputCollector.ReadSensorFrame();
+            return resolutionService.IsActionDetected(frame.camera);
         }
 
         /// <summary>
@@ -112,9 +112,9 @@ namespace FitnessGame.IOT
             if (!roundWindow.IsActionReady(Time.time, actionCooldown))
                 return false;
 
-            inputCollector.ReadRawData(out CameraData cameraData, out MotorData motorData);
+            SensorFrame frame = inputCollector.ReadSensorFrame();
 
-            if (!resolutionService.IsActionDetected(cameraData))
+            if (!resolutionService.IsActionDetected(frame.camera))
                 return false;
 
             if (!roundWindow.RoundActive)
@@ -123,7 +123,7 @@ namespace FitnessGame.IOT
                 return false;
             }
 
-            ResolveAction(cameraData, motorData);
+            ResolveAction(frame.camera, frame.motor, frame.imu);
             roundWindow.MarkActionResolved(Time.time);
 
             // Reset motor state to prevent force accumulation across actions
@@ -137,9 +137,9 @@ namespace FitnessGame.IOT
         /// <summary>
         /// Resolve one valid action and publish the result.
         /// </summary>
-        void ResolveAction(CameraData camera, MotorData motor)
+        void ResolveAction(CameraData camera, MotorData motor, IMUData imu)
         {
-            lastResolvedAction = resolutionService.Resolve(camera, motor, playerData);
+            lastResolvedAction = resolutionService.Resolve(camera, motor, imu, playerData);
 
             OnActionResolved?.Invoke(lastResolvedAction);
 

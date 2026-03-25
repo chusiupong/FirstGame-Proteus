@@ -27,6 +27,12 @@ namespace FitnessGame.IOT
             return camera.IsValidAction();
         }
 
+        public float EvaluateActionQuality(CameraData camera, MotorData motor, IMUData imu)
+        {
+            float imuScore01 = EvaluateImuScore01(imu);
+            return EvaluateActionQuality(camera, motor, imuScore01);
+        }
+
         /// <summary>
         /// Evaluate action quality from camera/motor and optional IMU score.
         /// Returns a score in [0, 100].
@@ -52,6 +58,26 @@ namespace FitnessGame.IOT
 
             // Clamp to 0-100
             return Mathf.Clamp(quality, 0f, 100f);
+        }
+
+        /// <summary>
+        /// Convert IMU movement quality into a normalized multiplier in [0,1].
+        /// </summary>
+        public float EvaluateImuScore01(IMUData imu)
+        {
+            if (imu == null)
+                return 1f;
+
+            float accMagnitude = imu.acceleration.magnitude;
+            float gyroMagnitude = imu.gyroscope.magnitude;
+
+            // Keep default behavior stable: no movement maps to 1f.
+            if (accMagnitude < 0.01f && gyroMagnitude < 0.01f)
+                return 1f;
+
+            float accScore = Mathf.Clamp01(accMagnitude / 12f);
+            float gyroScore = Mathf.Clamp01(gyroMagnitude / 250f);
+            return Mathf.Clamp01(0.7f * accScore + 0.3f * gyroScore);
         }
 
         /// <summary>

@@ -24,9 +24,9 @@ namespace FitnessGame.IOT
             return qualityEvaluator.IsActionDetected(cameraData);
         }
 
-        public ActionData Resolve(CameraData cameraData, MotorData motorData, PlayerFitnessData playerData)
+        public ActionData Resolve(CameraData cameraData, MotorData motorData, IMUData imuData, PlayerFitnessData playerData)
         {
-            float quality = qualityEvaluator.EvaluateActionQuality(cameraData, motorData);
+            float quality = qualityEvaluator.EvaluateActionQuality(cameraData, motorData, imuData);
             MuscleData muscleGain = muscleCalculator.CalculateMuscleGains(quality);
             float expGain = experienceCalculator.CalculateExpGain(muscleGain, quality);
             float attackPower = qualityEvaluator.CalculateAttackPower(quality);

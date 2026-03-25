@@ -100,6 +100,27 @@ namespace FitnessGame.IOT
         /// </summary>
         public byte MotorControlTarget = 2;
 
+        /// <summary>
+        /// ESP32 serial port name for motor/IMU stream, e.g. COM3.
+        /// </summary>
+        public string Esp32PortName = "COM3";
+
+        /// <summary>
+        /// ESP32 serial baud rate.
+        /// </summary>
+        public int Esp32BaudRate = 115200;
+
+        /// <summary>
+        /// Camera bridge serial port name, e.g. COM7.
+        /// Must be different from ESP32 port if both run on the same PC.
+        /// </summary>
+        public string CameraPortName = "COM7";
+
+        /// <summary>
+        /// Camera bridge serial baud rate.
+        /// </summary>
+        public int CameraBaudRate = 115200;
+
         // ==================== QUALITY THRESHOLDS ====================
         
         public float QualityThresholdS = 90f;
