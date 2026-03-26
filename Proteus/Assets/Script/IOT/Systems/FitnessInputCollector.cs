@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace FitnessGame.IOT
 {
@@ -12,12 +12,17 @@ namespace FitnessGame.IOT
         private readonly IMotorInput motorInput;
         private readonly IIMUInput imuInput;
         private readonly Esp32SensorClient esp32Client;
+        private readonly FitnessConfig config;
+        private readonly float sensorTimeoutSeconds;
         private bool motorPowered;
 
         public bool MotorPowered => motorPowered;
 
         public FitnessInputCollector(bool useMockData, FitnessConfig config)
         {
+            this.config = config;
+            sensorTimeoutSeconds = Mathf.Max(0.1f, config.SensorTimeoutSeconds);
+
             if (useMockData)
             {
                 cameraInput = new MockCameraInput();
@@ -42,28 +47,64 @@ namespace FitnessGame.IOT
             cameraInput.Initialize();
             motorInput.Initialize();
             imuInput.Initialize();
+
+            // Hardware Motor lifecycle initialization at application start rather than round start
+            if (!esp32Client?.IsConnected ?? true) 
+            {
+                // Safety check: skip if client is mock or not yet fully ready, 
+                // but since Initialize runs first, let's keep the logic simple.
+            }
+            
+            if (config.AutoPowerOnMotor)
+            {
+                PowerOnMotor(config.MotorControlTarget);
+            }
         }
 
         public void Shutdown()
         {
+            if (config.AutoPowerOffMotor)
+            {
+                PowerOffMotor(config.MotorControlTarget);
+            }
+
             cameraInput.Shutdown();
             motorInput.Shutdown();
             imuInput.Shutdown();
         }
 
-        public SensorFrame ReadSensorFrame()
+        public void ReadRawInputs(out CameraData cameraData, out MotorData motorData, out IMUData imuData)
         {
-            CameraData cameraData = cameraInput.GetCameraData();
-            MotorData motorData = motorInput.GetMotorData();
-            IMUData imuData = imuInput.GetIMUData();
-            return new SensorFrame(cameraData, motorData, imuData);
+            if (esp32Client == null)
+            {
+                cameraData = cameraInput.GetCameraData();
+                motorData = motorInput.GetMotorData();
+                imuData = imuInput.GetIMUData();
+                return;
+            }
+
+            cameraData = cameraInput.GetCameraData();
+            if (!esp32Client.IsCameraActive(sensorTimeoutSeconds))
+                cameraData = new CameraData(0f);
+
+            motorData = motorInput.GetMotorData();
+            if (!esp32Client.IsMotorActive(sensorTimeoutSeconds))
+                motorData = new MotorData(0f);
+
+            imuData = imuInput.GetIMUData();
+            if (!esp32Client.IsImuActive(sensorTimeoutSeconds))
+                imuData = new IMUData();
         }
 
         public void ReadRawData(out CameraData cameraData, out MotorData motorData)
         {
-            SensorFrame frame = ReadSensorFrame();
-            cameraData = frame.camera;
-            motorData = frame.motor;
+            ReadRawInputs(out cameraData, out motorData, out _);
+        }
+
+        public void ResetRoundState()
+        {
+            esp32Client?.ResetRoundState();
+            ResetMotorState();
         }
 
         public bool IsActionDetected(CameraData cameraData)
@@ -81,13 +122,14 @@ namespace FitnessGame.IOT
             if (motorPowered)
                 return false;
 
-            var powerOnPacket = MotorCommandPacket.CreatePowerOnPacket(motorTarget);
+            var powerOnPacket = MotorCommandPacket.CreatePowerOnPacket();
             motorInput.SendCommand(powerOnPacket);
 
-            var workModePacket = MotorCommandPacket.CreateWorkModePacket(motorTarget, 0x00);
-            motorInput.SendCommand(workModePacket);
+            var configPacket = MotorCommandPacket.CreateSpringModePacket(force: 50, distance: 150);
+            motorInput.SendCommand(configPacket);
 
             motorPowered = true;
+            Debug.Log("[IOT][Motor] Power ON + SpringMode configured via Initialization");
             return true;
         }
 
@@ -96,10 +138,11 @@ namespace FitnessGame.IOT
             if (!motorPowered)
                 return false;
 
-            var powerOffPacket = MotorCommandPacket.CreatePowerOffPacket(motorTarget);
+            var powerOffPacket = MotorCommandPacket.CreatePowerOffPacket();
             motorInput.SendCommand(powerOffPacket);
 
             motorPowered = false;
+            Debug.Log("[IOT][Motor] Power OFF via Shutdown");
             return true;
         }
     }

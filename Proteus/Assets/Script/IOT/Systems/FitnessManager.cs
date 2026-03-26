@@ -1,17 +1,24 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace FitnessGame.IOT
 {
+    public enum ActionState
+    {
+        Idle,             // Round inactive
+        WaitingForAction, // Round started, waiting for player action (limited by timeout)
+        Recording         // Action detected, recording sensor trajectory
+    }
+
     /// <summary>
     /// Orchestrates the IoT pipeline for one player round:
-    /// input capture -> action resolution -> round state/timing.
+    /// timeout check -> action state machine -> action resolution.
     /// </summary>
     public class FitnessManager : MonoBehaviour
     {
         public event Action<ActionData> OnActionResolved;
 
-        // Singleton instance
         public static FitnessManager Instance { get; private set; }
 
         private FitnessConfig config;
@@ -23,15 +30,18 @@ namespace FitnessGame.IOT
         public PlayerFitnessData playerData;
 
         [Header("Settings")]
-        public bool useMockData = true;  // Use mock data for testing
-        public float actionCooldown = 0.5f;  // Minimum time between actions
+        public bool useMockData = true;
 
-        [Header("Round State")]
-        private ActionData lastResolvedAction;
+        [Header("State Machine")]
+        public ActionState CurrentState = ActionState.Idle;
+
+        // Trajectory recording containers
+        private List<MotorData> motorTrajectory = new List<MotorData>();
+        private List<IMUData> imuTrajectory = new List<IMUData>();
+        private CameraData startCameraFrame;
 
         void Awake()
         {
-            // Singleton setup
             if (Instance == null)
             {
                 Instance = this;
@@ -46,228 +56,157 @@ namespace FitnessGame.IOT
 
         void Initialize()
         {
-            Debug.Log("[IOT] FitnessManager initializing...");
-
             config = new FitnessConfig();
             inputCollector = new FitnessInputCollector(useMockData, config);
             roundWindow = new RoundWindowController();
             resolutionService = new ActionResolutionService(config);
 
             inputCollector.Initialize();
-
-            // Initialize or load player data
             playerData = new PlayerFitnessData();
             playerData.experienceToNextLevel = resolutionService.CalculateExpForLevel(playerData.level);
-            // TODO: Load from saved data
 
-            lastResolvedAction = new ActionData();
+            // ONLY ONCE: Turn on the motor when the application/manager initializes
+            if (config.AutoPowerOnMotor)
+            {
+                inputCollector.PowerOnMotor(config.MotorControlTarget);
+            }
 
-            Debug.Log("[IOT] FitnessManager ready");
-            Debug.Log("[IOT] Awaiting round control and action confirmation from external caller");
+            Debug.Log("[IOT] FitnessManager ready - Motor mapped to application lifecycle");
+        }
+
+        public void RoundStart()
+        {
+            roundWindow.RoundStart(Time.time);
+            CurrentState = ActionState.WaitingForAction;
+            inputCollector.ResetRoundState();
+
+            motorTrajectory.Clear();
+            imuTrajectory.Clear();
+
+            Debug.Log($"[IOT][Round] START. Waiting for action (Timeout: {config.ActionTimeout:F1}s)");
+        }
+
+        public void RoundEnd()
+        {
+            roundWindow.RoundEnd();
+            CurrentState = ActionState.Idle;
+            inputCollector.ResetRoundState();
+
+            Debug.Log("[IOT][Round] END.");
         }
 
         void Update()
         {
-            // Check for round timeout
-            CheckRoundTimeout();
-        }
+            if (CurrentState == ActionState.Idle) return;
 
-        /// <summary>
-        /// Check if action timeout has been exceeded inside an active round.
-        /// </summary>
-        void CheckRoundTimeout()
-        {
+            // Global highest priority: Round timeout and anti-stuck mechanism
             if (roundWindow.TryConsumeTimeout(Time.time, config.ActionTimeout))
             {
-                TriggerMiss();
+                if (CurrentState == ActionState.WaitingForAction)
+                {
+                    // Timeout reached before any action started
+                    TriggerMiss();
+                }
+                else if (CurrentState == ActionState.Recording)
+                {
+                    // Timeout reached while recording (stuck or taking too long), force resolve
+                    Debug.LogWarning("[IOT] Timeout reached while recording! Forcing resolution.");
+                    ResolveAndEndAction();
+                }
+                return;
             }
-        }
 
-        /// <summary>
-        /// Trigger a MISS event (timeout)
-        /// </summary>
-        void TriggerMiss()
-        {
-            Debug.LogWarning($"[IOT][Round] MISS: no valid action within {config.ActionTimeout:F1}s");
-            Debug.Log($"[IOT][Round] Timer reset. Next timeout: {config.ActionTimeout:F1}s");
+            inputCollector.ReadRawInputs(out CameraData camera, out MotorData motor, out IMUData imu);
 
-            // TODO: Trigger miss penalty in game (e.g., take damage, lose combo)
-        }
-
-        /// <summary>
-        /// Camera-only action detection check.
-        /// </summary>
-        public bool IsActionDetected()
-        {
-            SensorFrame frame = inputCollector.ReadSensorFrame();
-            return resolutionService.IsActionDetected(frame.camera);
-        }
-
-        /// <summary>
-        /// Try resolving one action from current sensor data.
-        /// Returns true when an action is successfully resolved.
-        /// </summary>
-        public bool TryResolveCurrentAction()
-        {
-            if (!roundWindow.IsActionReady(Time.time, actionCooldown))
-                return false;
-
-            SensorFrame frame = inputCollector.ReadSensorFrame();
-
-            if (!resolutionService.IsActionDetected(frame.camera))
-                return false;
-
-            if (!roundWindow.RoundActive)
+            switch (CurrentState)
             {
-                Debug.LogWarning("[IOT][Round] Action ignored: round is not active. Call RoundStart first.");
-                return false;
+                case ActionState.WaitingForAction:
+                    UpdateWaitingState(camera, motor, imu);
+                    break;
+                case ActionState.Recording:
+                    UpdateRecordingState(camera, motor, imu);
+                    break;
             }
-
-            ResolveAction(frame.camera, frame.motor, frame.imu);
-            roundWindow.MarkActionResolved(Time.time);
-
-            // Reset motor state to prevent force accumulation across actions
-            inputCollector.ResetMotorState();
-
-            // Restart round timeout for next action
-            Debug.Log($"[IOT][Round] Action resolved. Next timeout: {config.ActionTimeout:F1}s");
-            return true;
         }
 
-        /// <summary>
-        /// Resolve one valid action and publish the result.
-        /// </summary>
-        void ResolveAction(CameraData camera, MotorData motor, IMUData imu)
+        private void UpdateWaitingState(CameraData camera, MotorData motor, IMUData imu)
         {
-            lastResolvedAction = resolutionService.Resolve(camera, motor, imu, playerData);
-
-            OnActionResolved?.Invoke(lastResolvedAction);
-
-            // ========== LOGGING ==========
-            string grade = resolutionService.GetQualityGrade(lastResolvedAction.qualityScore);
-            Debug.Log($"[IOT][Action] BowDraw resolved. Grade: {grade} | " +
-                      $"Quality: {lastResolvedAction.qualityScore:F1}% | Attack: {lastResolvedAction.attackPower:F1} | EXP: +{lastResolvedAction.expGain:F1}");
-            Debug.Log($"[IOT][Action] Muscles trained: {lastResolvedAction.muscleGain}");
-            Debug.Log($"[IOT][Player] Level: {playerData.level} | EXP: {playerData.experience:F0}/{playerData.experienceToNextLevel:F0}");
-
-            // TODO: Trigger game events (attack animation, damage calculation, etc.)
+            // Trigger conditions: Pose detected by camera OR motor force spike (> 2f)
+            if (resolutionService.IsActionDetected(camera) || motor.force > 2f)
+            {
+                Debug.Log("[IOT] Action Started! Transitioning to Recording.");
+                CurrentState = ActionState.Recording;
+                startCameraFrame = camera;
+                motorTrajectory.Clear();
+                imuTrajectory.Clear();
+                motorTrajectory.Add(motor);
+                imuTrajectory.Add(imu);
+            }
         }
 
-        /// <summary>
-        /// Get player's level-based attack bonus
-        /// </summary>
+        private void UpdateRecordingState(CameraData camera, MotorData motor, IMUData imu)
+        {
+            motorTrajectory.Add(motor);
+            imuTrajectory.Add(imu);
+
+            // End conditions: Pose lost AND force dropped back
+            bool actionFinished = !resolutionService.IsActionDetected(camera) && motor.force < 1f;
+
+            if (actionFinished)
+            {
+                Debug.Log($"[IOT] Action Finished (Frames: {motorTrajectory.Count}). Resolving immediately.");
+                ResolveAndEndAction();
+            }
+        }
+
+        private void ResolveAndEndAction()
+        {
+            // Temporary: Extract peak motor force since ResolutionService doesn't support List yet
+            MotorData peakMotor = GetPeakMotor(motorTrajectory);
+            ActionData result = resolutionService.Resolve(startCameraFrame, peakMotor, imuTrajectory[0], playerData);
+
+            OnActionResolved?.Invoke(result);
+
+            string grade = resolutionService.GetQualityGrade(result.qualityScore);
+            Debug.Log($"[IOT][Action] Resolved! Grade: {grade} | Attack: {result.attackPower:F1} | Peak Force: {peakMotor.force:F1}");
+
+            // Action finished, end round immediately and wait for the next RoundStart call
+            RoundEnd();
+        }
+
+        private void TriggerMiss()
+        {
+            Debug.LogWarning($"[IOT][Round] MISS: Timeout exceeded before action started.");
+
+            ActionData missAction = new ActionData { qualityScore = 0, attackPower = 0, expGain = 0 };
+            OnActionResolved?.Invoke(missAction);
+
+            RoundEnd();
+        }
+
+        private MotorData GetPeakMotor(List<MotorData> trajectory)
+        {
+            MotorData peak = new MotorData(0);
+            foreach (var m in trajectory) {
+                if (m.force > peak.force) peak = m;
+            }
+            return peak;
+        }
+
         public int AttackBonus => resolutionService.GetAttackBonus(playerData);
-
-        /// <summary>
-        /// Start one player round window.
-        /// Enables timeout and optionally powers on the motor.
-        /// </summary>
-        public void RoundStart()
-        {
-            roundWindow.RoundStart(Time.time);
-            
-            // Auto power on motor if enabled
-            if (config.AutoPowerOnMotor)
-            {
-                PowerOnMotor();
-            }
-            
-            Debug.Log($"[IOT][Round] START. Timeout: {config.ActionTimeout:F1}s");
-        }
-
-        /// <summary>
-        /// End current player round window.
-        /// Disables timeout and optionally powers off the motor.
-        /// </summary>
-        public void RoundEnd()
-        {
-            roundWindow.RoundEnd();
-            
-            // Auto power off motor if enabled
-            if (config.AutoPowerOffMotor)
-            {
-                PowerOffMotor();
-            }
-            
-            Debug.Log("[IOT][Round] END");
-        }
-
-        /// <summary>
-        /// Send power-on command to motor and switch to work mode.
-        /// </summary>
-        public void PowerOnMotor()
-        {
-            if (inputCollector.PowerOnMotor(config.MotorControlTarget))
-            {
-                Debug.Log("[IOT][Motor] Power ON + WorkMode configured");
-            }
-            else
-            {
-                Debug.Log("[IOT][Motor] Power already ON");
-            }
-        }
-
-        /// <summary>
-        /// Send power-off command to motor.
-        /// </summary>
-        public void PowerOffMotor()
-        {
-            if (inputCollector.PowerOffMotor(config.MotorControlTarget))
-            {
-                Debug.Log("[IOT][Motor] Power OFF");
-            }
-            else
-            {
-                Debug.Log("[IOT][Motor] Power already OFF");
-            }
-        }
-
-        /// <summary>
-        /// Returns current motor power state tracked by FitnessManager.
-        /// </summary>
-        public bool IsMotorPowered()
-        {
-            return inputCollector.MotorPowered;
-        }
-
-        public float RemainingTime
-        {
-            get
-            {
-                return roundWindow.GetRemainingTime(Time.time, config.ActionTimeout);
-            }
-        }
-
+        public PlayerFitnessData PlayerData => playerData;
+        public float RemainingTime => roundWindow.GetRemainingTime(Time.time, config.ActionTimeout);
         public bool RoundActive => roundWindow.RoundActive;
-
-        /// <summary>
-        /// Check if action is ready (cooldown finished)
-        /// </summary>
-        public bool IsActionReady()
-        {
-            return roundWindow.IsActionReady(Time.time, actionCooldown);
-        }
 
         void OnDestroy()
         {
-            // Cleanup
-            if (inputCollector != null)
-                inputCollector.Shutdown();
+            // ONLY ONCE: Turn off the motor when playing stops
+            if (config.AutoPowerOffMotor && inputCollector != null)
+            {
+                inputCollector.PowerOffMotor(config.MotorControlTarget);
+            }
             
-            // TODO: Save player data
-        }
-
-        // === Public API for other systems ===
-
-        public PlayerFitnessData PlayerData => playerData;
-
-        /// <summary>
-        /// Force save player data
-        /// </summary>
-        public void SavePlayerData()
-        {
-            // TODO: Implement data persistence
-            Debug.Log("[IOT][Player] Data saved");
+            if (inputCollector != null) inputCollector.Shutdown();
         }
     }
 }

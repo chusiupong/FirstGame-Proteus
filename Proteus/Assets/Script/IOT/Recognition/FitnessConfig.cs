@@ -85,6 +85,10 @@ namespace FitnessGame.IOT
 
         // ==================== MOTOR POWER CONTROL ====================
         
+        public bool UseESP32Motor = true;  // Whether to use true data
+
+        public bool IsMotorPowerOn = false; // Current motor power state, updated by FitnessManager
+
         /// <summary>
         /// Auto power on motor when a round starts
         /// </summary>
@@ -120,6 +124,16 @@ namespace FitnessGame.IOT
         /// Camera bridge serial baud rate.
         /// </summary>
         public int CameraBaudRate = 115200;
+
+        // ==================== IMU ESP32 ====================
+        public bool UseEsp32IMU = true;  // Whether to read IMU data from ESP32 stream
+
+        // ==================== camera ====================
+        public bool UseCameraBridge = true;  // Whether to read camera data from separate serial bridge
+
+        // ==================== IOT protection and arrangement ====================
+
+        public float SensorTimeoutSeconds = 3f;
 
         // ==================== QUALITY THRESHOLDS ====================
         
