@@ -14,32 +14,54 @@ namespace FitnessGame.IOT
         private readonly Esp32SensorClient esp32Client;
         private readonly FitnessConfig config;
         private readonly float sensorTimeoutSeconds;
+        private readonly bool useMockCamera;
+        private readonly bool useMockMotor;
+        private readonly bool useMockImu;
+        private readonly bool motorViaEsp32;
+        private readonly bool imuViaEsp32;
         private bool motorPowered;
 
         public bool MotorPowered => motorPowered;
 
-        public FitnessInputCollector(bool useMockData, FitnessConfig config)
+        public FitnessInputCollector(bool useMockCamera, bool useMockMotor, bool useMockImu, FitnessConfig config)
         {
             this.config = config;
+            this.useMockCamera = useMockCamera;
+            this.useMockMotor = useMockMotor;
+            this.useMockImu = useMockImu;
             sensorTimeoutSeconds = Mathf.Max(0.1f, config.SensorTimeoutSeconds);
 
-            if (useMockData)
-            {
-                cameraInput = new MockCameraInput();
-                motorInput = new MockMotorInput();
-                imuInput = new MockIMUData();
-                Debug.Log("[IOT][Input] Using MOCK camera/motor/imu inputs");
-            }
-            else
+            bool useStm32Motor = !useMockMotor && config.UseStm32Motor;
+            motorViaEsp32 = !useMockMotor && !useStm32Motor;
+
+            bool useUdpImu = !useMockImu && config.UseUdpImu;
+            imuViaEsp32 = !useMockImu && !useUdpImu;
+
+            bool needEsp32Client = motorViaEsp32 || imuViaEsp32;
+            if (needEsp32Client)
             {
                 esp32Client = new Esp32SensorClient(config.Esp32PortName, config.Esp32BaudRate);
-
-                cameraInput = new TeammateCameraInput(config.CameraPortName, config.CameraBaudRate);
-                motorInput = new Esp32MotorInput(esp32Client);
-                imuInput = new Esp32IMUInput(esp32Client);
-
-                Debug.Log($"[IOT][Input] Using REAL motor/imu via ESP32 {config.Esp32PortName}@{config.Esp32BaudRate}, camera adapter pending integration");
             }
+
+            cameraInput = useMockCamera
+                ? new MockCameraInput()
+                : new TeammateCameraInput(config.CameraPortName, config.CameraBaudRate);
+
+            motorInput = useMockMotor
+                ? new MockMotorInput()
+                : (useStm32Motor
+                    ? new Stm32MotorInput(config.Stm32MotorPortName, config.Stm32MotorBaudRate, config.SensorTimeoutSeconds)
+                    : new Esp32MotorInput(esp32Client));
+
+            imuInput = useMockImu
+                ? new MockIMUData()
+                : (useUdpImu
+                    ? new UdpImuInput(config.UdpImuPort, config.UdpImuStaleSeconds)
+                    : new Esp32IMUInput(esp32Client));
+
+            string imuSource = useMockImu ? "MOCK" : (useUdpImu ? "UDP" : "ESP32");
+            string motorSource = useMockMotor ? "MOCK" : (useStm32Motor ? "STM32" : "ESP32");
+            Debug.Log($"[IOT][Input] Source - Camera:{(useMockCamera ? "MOCK" : "REAL")} | Motor:{motorSource} | IMU:{imuSource}");
         }
 
         public void Initialize()
@@ -84,15 +106,13 @@ namespace FitnessGame.IOT
             }
 
             cameraData = cameraInput.GetCameraData();
-            if (!esp32Client.IsCameraActive(sensorTimeoutSeconds))
-                cameraData = new CameraData(0f);
 
             motorData = motorInput.GetMotorData();
-            if (!esp32Client.IsMotorActive(sensorTimeoutSeconds))
+            if (motorViaEsp32 && !esp32Client.IsMotorActive(sensorTimeoutSeconds))
                 motorData = new MotorData(0f);
 
             imuData = imuInput.GetIMUData();
-            if (!esp32Client.IsImuActive(sensorTimeoutSeconds))
+            if (imuViaEsp32 && !esp32Client.IsImuActive(sensorTimeoutSeconds))
                 imuData = new IMUData();
         }
 
@@ -117,8 +137,27 @@ namespace FitnessGame.IOT
             motorInput.Reset();
         }
 
+        public bool TryGetMotor1Telemetry(out float speedCmPerSec, out float distanceCm, out int pullCount)
+        {
+            if (motorInput is Stm32MotorInput stm32)
+            {
+                speedCmPerSec = stm32.Motor1SpeedCmPerSec;
+                distanceCm = stm32.Motor1DistanceCm;
+                pullCount = stm32.Motor1PullCount;
+                return true;
+            }
+
+            speedCmPerSec = 0f;
+            distanceCm = 0f;
+            pullCount = 0;
+            return false;
+        }
+
         public bool PowerOnMotor(byte motorTarget)
         {
+            if (useMockMotor)
+                return false;
+
             if (motorPowered)
                 return false;
 
@@ -135,6 +174,9 @@ namespace FitnessGame.IOT
 
         public bool PowerOffMotor(byte motorTarget)
         {
+            if (useMockMotor)
+                return false;
+
             if (!motorPowered)
                 return false;
 

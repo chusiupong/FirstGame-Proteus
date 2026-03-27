@@ -5,10 +5,19 @@ namespace FitnessGame.IOT
     /// <summary>
     /// Debug-only keyboard adapter.
     /// Keeps test keybindings outside formal IoT service classes.
-    /// T = RoundStart, Y = RoundEnd, SPACE = TryResolveCurrentAction.
+    /// T = RoundStart, Y = RoundEnd, SPACE = toggle round state.
     /// </summary>
     public class DebugRoundKeyboardInput : MonoBehaviour
     {
+        [Header("Keys")]
+        public KeyCode startRoundKey = KeyCode.T;
+        public KeyCode endRoundKey = KeyCode.Y;
+        public KeyCode toggleRoundKey = KeyCode.R;
+
+        [Header("Demo")]
+        public bool autoLoopRounds = false;
+        public float autoLoopDelaySeconds = 1.0f;
+
         private FitnessManager fitnessManager;
 
         void Start()
@@ -21,28 +30,62 @@ namespace FitnessGame.IOT
                 return;
             }
 
-            Debug.Log("[IOT][Debug] Keyboard adapter enabled: T=RoundStart | Y=RoundEnd | SPACE=TryResolveCurrentAction");
+            fitnessManager.OnActionResolved += OnActionResolved;
+            Debug.Log($"[IOT][Debug] Keyboard adapter enabled: {startRoundKey}=RoundStart | {endRoundKey}=RoundEnd | {toggleRoundKey}=Toggle Round | AutoLoop={autoLoopRounds}");
         }
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Input.GetKeyDown(startRoundKey))
             {
                 fitnessManager.RoundStart();
             }
 
-            if (Input.GetKeyDown(KeyCode.Y))
+            if (Input.GetKeyDown(endRoundKey))
             {
                 fitnessManager.RoundEnd();
             }
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKeyDown(toggleRoundKey))
             {
-                bool resolved = fitnessManager.TryResolveCurrentAction();
-                if (!resolved && !fitnessManager.IsActionDetected())
+                if (fitnessManager.CurrentState == ActionState.Idle)
                 {
-                    Debug.Log("[IOT][Debug] No camera action detected. Hold Q then press SPACE.");
+                    fitnessManager.RoundStart();
                 }
+                else
+                {
+                    fitnessManager.RoundEnd();
+                }
+            }
+        }
+
+        private void OnActionResolved(ActionData _)
+        {
+            if (!autoLoopRounds)
+                return;
+
+            CancelInvoke(nameof(TryStartNextRound));
+            Invoke(nameof(TryStartNextRound), Mathf.Max(0f, autoLoopDelaySeconds));
+        }
+
+        private void TryStartNextRound()
+        {
+            if (fitnessManager == null)
+                return;
+
+            if (fitnessManager.CurrentState == ActionState.Idle)
+            {
+                fitnessManager.RoundStart();
+            }
+        }
+
+        void OnDestroy()
+        {
+            CancelInvoke(nameof(TryStartNextRound));
+
+            if (fitnessManager != null)
+            {
+                fitnessManager.OnActionResolved -= OnActionResolved;
             }
         }
     }

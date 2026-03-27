@@ -1,6 +1,10 @@
 using System;
 using System.Globalization;
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
 using System.IO.Ports;
+#endif
+
 using UnityEngine;
 
 namespace FitnessGame.IOT
@@ -14,9 +18,12 @@ namespace FitnessGame.IOT
         private readonly string portName;
         private readonly int baudRate;
 
+    #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
         private SerialPort serialPort;
+    #endif
         private CameraData latestCamera = new CameraData();
         private bool initialized;
+        private bool warnedUnsupportedPlatform;
 
         public TeammateCameraInput(string portName, int baudRate)
         {
@@ -29,6 +36,7 @@ namespace FitnessGame.IOT
             if (initialized)
                 return;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             try
             {
                 serialPort = new SerialPort(portName, baudRate)
@@ -45,12 +53,21 @@ namespace FitnessGame.IOT
                 initialized = false;
                 Debug.LogWarning($"[IOT][Camera] Serial connect failed ({portName}): {ex.Message}");
             }
+#else
+            initialized = false;
+            if (!warnedUnsupportedPlatform)
+            {
+                warnedUnsupportedPlatform = true;
+                Debug.LogWarning("[IOT][Camera] Serial input is only supported on Windows/macOS Editor/Standalone. Using fallback values.");
+            }
+#endif
         }
 
         public void Shutdown()
         {
             initialized = false;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             if (serialPort == null)
                 return;
 
@@ -68,11 +85,16 @@ namespace FitnessGame.IOT
                 serialPort.Dispose();
                 serialPort = null;
             }
+#endif
         }
 
         public bool IsConnected()
         {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             return initialized && serialPort != null && serialPort.IsOpen;
+#else
+            return false;
+#endif
         }
 
         public CameraData GetCameraData()
@@ -90,6 +112,7 @@ namespace FitnessGame.IOT
             if (!IsConnected())
                 return;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             try
             {
                 while (serialPort.BytesToRead > 0)
@@ -109,6 +132,7 @@ namespace FitnessGame.IOT
             {
                 Debug.LogWarning($"[IOT][Camera] Serial read failed: {ex.Message}");
             }
+#endif
         }
 
         private void ApplyIncomingLine(string line)

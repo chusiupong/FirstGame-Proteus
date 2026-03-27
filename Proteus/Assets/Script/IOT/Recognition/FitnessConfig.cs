@@ -115,6 +115,22 @@ namespace FitnessGame.IOT
         public int Esp32BaudRate = 115200;
 
         /// <summary>
+        /// Prefer STM32 serial motor adapter over ESP32 motor path.
+        /// Keeps ESP32 motor as fallback for demos.
+        /// </summary>
+        public bool UseStm32Motor = true;
+
+        /// <summary>
+        /// STM32 serial port used for motor data/commands.
+        /// </summary>
+        public string Stm32MotorPortName = "COM6";
+
+        /// <summary>
+        /// STM32 serial baud rate used by the motor firmware.
+        /// </summary>
+        public int Stm32MotorBaudRate = 115200;
+
+        /// <summary>
         /// Camera bridge serial port name, e.g. COM7.
         /// Must be different from ESP32 port if both run on the same PC.
         /// </summary>
@@ -127,6 +143,24 @@ namespace FitnessGame.IOT
 
         // ==================== IMU ESP32 ====================
         public bool UseEsp32IMU = true;  // Whether to read IMU data from ESP32 stream
+
+        // ==================== IMU UDP ====================
+
+        /// <summary>
+        /// Use UDP transport for IMU input instead of serial.
+        /// Expected packet format: IMU,ts,ax,ay,az,gx,gy,gz
+        /// </summary>
+        public bool UseUdpImu = true;
+
+        /// <summary>
+        /// UDP listen port for IMU packets.
+        /// </summary>
+        public int UdpImuPort = 5005;
+
+        /// <summary>
+        /// Stream considered stale if no packet arrives in this duration.
+        /// </summary>
+        public float UdpImuStaleSeconds = 1.0f;
 
         // ==================== camera ====================
         public bool UseCameraBridge = true;  // Whether to read camera data from separate serial bridge

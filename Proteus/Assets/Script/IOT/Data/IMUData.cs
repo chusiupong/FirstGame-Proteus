@@ -26,19 +26,6 @@ namespace FitnessGame.IOT
             this.gyroscope = gyroscope;
             this.timestamp = Time.time;
         }
-        public Direction GetMovementDirection()
-        {
-            if (acceleration.magnitude < 0.1f) return Direction.None; // No significant movement
-
-            // Determine primary movement direction based on acceleration
-            if (Mathf.Abs(acceleration.x) > Mathf.Abs(acceleration.y) && Mathf.Abs(acceleration.x) > Mathf.Abs(acceleration.z))
-                return acceleration.x > 0 ? Direction.Right : Direction.Left;
-            else if (Mathf.Abs(acceleration.y) > Mathf.Abs(acceleration.x) && Mathf.Abs(acceleration.y) > Mathf.Abs(acceleration.z))
-                return acceleration.y > 0 ? Direction.Up : Direction.Down;
-            else
-                return acceleration.z > 0 ? Direction.Forward : Direction.Backward;
-        }
-
 
         public override string ToString()
         {

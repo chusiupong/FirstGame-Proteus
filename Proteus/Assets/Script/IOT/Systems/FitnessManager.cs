@@ -30,7 +30,9 @@ namespace FitnessGame.IOT
         public PlayerFitnessData playerData;
 
         [Header("Settings")]
-        public bool useMockData = true;
+        public bool useMockCamera = true;
+        public bool useMockMotor = true;
+        public bool useMockImu = false;
 
         [Header("State Machine")]
         public ActionState CurrentState = ActionState.Idle;
@@ -57,7 +59,7 @@ namespace FitnessGame.IOT
         void Initialize()
         {
             config = new FitnessConfig();
-            inputCollector = new FitnessInputCollector(useMockData, config);
+            inputCollector = new FitnessInputCollector(useMockCamera, useMockMotor, useMockImu, config);
             roundWindow = new RoundWindowController();
             resolutionService = new ActionResolutionService(config);
 
@@ -76,9 +78,12 @@ namespace FitnessGame.IOT
 
         public void RoundStart()
         {
+            if (CurrentState != ActionState.Idle)
+                return;
+
             roundWindow.RoundStart(Time.time);
             CurrentState = ActionState.WaitingForAction;
-            inputCollector.ResetRoundState();
+            inputCollector.ResetRoundState();   
 
             motorTrajectory.Clear();
             imuTrajectory.Clear();
@@ -88,6 +93,9 @@ namespace FitnessGame.IOT
 
         public void RoundEnd()
         {
+            if (CurrentState == ActionState.Idle)
+                return;
+
             roundWindow.RoundEnd();
             CurrentState = ActionState.Idle;
             inputCollector.ResetRoundState();
@@ -141,6 +149,7 @@ namespace FitnessGame.IOT
                 imuTrajectory.Clear();
                 motorTrajectory.Add(motor);
                 imuTrajectory.Add(imu);
+                //这里加入模型开始拉弓
             }
         }
 
@@ -156,6 +165,7 @@ namespace FitnessGame.IOT
             {
                 Debug.Log($"[IOT] Action Finished (Frames: {motorTrajectory.Count}). Resolving immediately.");
                 ResolveAndEndAction();
+                //这里加入模型射箭的动作开始
             }
         }
 
@@ -197,6 +207,32 @@ namespace FitnessGame.IOT
         public PlayerFitnessData PlayerData => playerData;
         public float RemainingTime => roundWindow.GetRemainingTime(Time.time, config.ActionTimeout);
         public bool RoundActive => roundWindow.RoundActive;
+
+        public void GetLatestRawInputs(out CameraData cameraData, out MotorData motorData, out IMUData imuData)
+        {
+            if (inputCollector == null)
+            {
+                cameraData = new CameraData();
+                motorData = new MotorData();
+                imuData = new IMUData();
+                return;
+            }
+
+            inputCollector.ReadRawInputs(out cameraData, out motorData, out imuData);
+        }
+
+        public bool TryGetMotor1Telemetry(out float speedCmPerSec, out float distanceCm, out int pullCount)
+        {
+            if (inputCollector == null)
+            {
+                speedCmPerSec = 0f;
+                distanceCm = 0f;
+                pullCount = 0;
+                return false;
+            }
+
+            return inputCollector.TryGetMotor1Telemetry(out speedCmPerSec, out distanceCm, out pullCount);
+        }
 
         void OnDestroy()
         {

@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Globalization;
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
 using System.IO.Ports;
+#endif
+
 using UnityEngine;
 
 namespace FitnessGame.IOT
@@ -17,8 +21,11 @@ namespace FitnessGame.IOT
         private readonly string portName;
         private readonly int baudRate;
 
+    #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
         private SerialPort serialPort;
+    #endif
         private bool initialized;
+        private bool warnedUnsupportedPlatform;
         private CameraData latestCamera = new CameraData();
         private MotorData latestMotor = new MotorData();
         private IMUData latestImu = new IMUData();
@@ -35,13 +42,24 @@ namespace FitnessGame.IOT
             this.baudRate = baudRate;
         }
 
-        public bool IsConnected => serialPort != null && serialPort.IsOpen;
+        public bool IsConnected
+        {
+            get
+            {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+                return serialPort != null && serialPort.IsOpen;
+#else
+                return false;
+#endif
+            }
+        }
 
         public void Initialize()
         {
             if (initialized)
                 return;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             try
             {
                 serialPort = new SerialPort(portName, baudRate)
@@ -61,6 +79,14 @@ namespace FitnessGame.IOT
                 initialized = false;
                 Debug.LogWarning($"[IOT][ESP32] Connect failed ({portName}): {ex.Message}. Fallback values will be used.");
             }
+#else
+            initialized = false;
+            if (!warnedUnsupportedPlatform)
+            {
+                warnedUnsupportedPlatform = true;
+                Debug.LogWarning("[IOT][ESP32] Serial input is only supported on Windows/macOS Editor/Standalone. Using fallback values.");
+            }
+#endif
         }
 
         public void Shutdown()
@@ -71,6 +97,8 @@ namespace FitnessGame.IOT
         private void ForceDisconnect()
         {
             initialized = false;
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             if (serialPort == null)
                 return;
 
@@ -88,6 +116,7 @@ namespace FitnessGame.IOT
                 serialPort.Dispose();
                 serialPort = null;
             }
+#endif
         }
 
         public MotorData GetLatestMotorData()
@@ -158,6 +187,7 @@ namespace FitnessGame.IOT
             if (!IsConnected)
                 return;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             try
             {
                 byte[] bytes = packet.GetBytes();
@@ -168,6 +198,7 @@ namespace FitnessGame.IOT
                 Debug.LogWarning($"[IOT][ESP32] Send command failed (Device disconnected?): {ex.Message}");
                 ForceDisconnect();
             }
+#endif
         }
 
         private void PollIncoming()
@@ -175,6 +206,7 @@ namespace FitnessGame.IOT
             if (!initialized || !IsConnected)
                 return;
 
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
             try
             {
                 while (serialPort.BytesToRead > 0)
@@ -195,6 +227,7 @@ namespace FitnessGame.IOT
                 Debug.LogWarning($"[IOT][ESP32] Read failed (Device forcefully disconnected?): {ex.Message}");
                 ForceDisconnect();
             }
+#endif
         }
 
         private void ApplyIncomingLine(string line)

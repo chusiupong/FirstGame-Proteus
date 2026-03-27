@@ -18,10 +18,6 @@ namespace FitnessGame.IOT
             this.timestamp = Time.time;
         }
 
-        public new MotorMotionData (float force, float timestamp) : base(force, timestamp)
-        {
-            
-        }
         public bool IsActive()
         {
             return force > 5f;  // Threshold for detecting active movement
