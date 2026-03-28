@@ -128,7 +128,7 @@ namespace FitnessGame.IOT
         /// <summary>
         /// STM32 serial baud rate used by the motor firmware.
         /// </summary>
-        public int Stm32MotorBaudRate = 115200;
+        public int Stm32MotorBaudRate = 57600;
 
         /// <summary>
         /// Camera bridge serial port name, e.g. COM7.

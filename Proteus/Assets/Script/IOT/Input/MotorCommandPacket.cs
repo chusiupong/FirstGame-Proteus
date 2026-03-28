@@ -51,9 +51,12 @@ namespace FitnessGame.IOT
             cmd.packet[2] = 0x01; // Command code
             cmd.packet[3] = 0x02; // Mode code: Spring
             
-            cmd.packet[4] = force; // Base return force
-            cmd.packet[5] = force; // Max pull force limit
-            // DATA[6]~DATA[8] left 0x00 as default
+            // Single-motor demo mode: Motor1 active, Motor2 disabled.
+            cmd.packet[4] = force; // Motor1 base return force
+            cmd.packet[5] = 0; // Motor2
+            cmd.packet[6] = 100;   // Motor1 max pull force limit (100 decimal = 0x64)
+            cmd.packet[7] = 0;     // Motor2 max pull force disabled
+
             cmd.packet[9] = distance; // Spring length
             
             return cmd;

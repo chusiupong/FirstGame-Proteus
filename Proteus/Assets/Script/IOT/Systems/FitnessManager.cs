@@ -149,7 +149,9 @@ namespace FitnessGame.IOT
                 imuTrajectory.Clear();
                 motorTrajectory.Add(motor);
                 imuTrajectory.Add(imu);
-                //这里加入模型开始拉弓
+                // [HOOK-START] >>> Model bridge entry for draw start.
+                // Teammate: trigger character "start draw" animation/state here.
+                // Keep this call non-blocking and do NOT modify IoT state machine fields.
             }
         }
 
@@ -165,7 +167,9 @@ namespace FitnessGame.IOT
             {
                 Debug.Log($"[IOT] Action Finished (Frames: {motorTrajectory.Count}). Resolving immediately.");
                 ResolveAndEndAction();
-                //这里加入模型射箭的动作开始
+                // [HOOK-END] >>> Model bridge entry for release/shot.
+                // Teammate: trigger character release-shot action (e.g. Attack/ReleaseShot) here.
+                // EndAttack timing should remain inside player animation controller logic.
             }
         }
 
