@@ -61,7 +61,18 @@ namespace FitnessGame.IOT
             
             return cmd;
         }
-
+        public static MotorCommandPacket CreateSetForcePacket(byte force)
+        {
+            var cmd = new MotorCommandPacket();
+            cmd.packet[1] = 0x02; // Target: Both motors
+            cmd.packet[2] = 0x03; // Command code
+            
+            // Single-motor demo mode: Motor1 active, Motor2 disabled.
+            cmd.packet[4] = force; // Motor1 base return force
+            cmd.packet[5] = 0; // Motor2
+            
+            return cmd;
+        }
         private void CalculateCRC()
         {
             byte crc = 0;
