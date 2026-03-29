@@ -25,6 +25,7 @@ namespace FitnessGame.IOT
         {
             var cmd = new MotorCommandPacket();
             cmd.packet[1] = 0x02; // Target: Both motors (0x02)
+            cmd.packet[2] = 0x02; // Command code
             cmd.packet[3] = 0xAA; // Status: Enable
             return cmd;
         }
@@ -37,6 +38,7 @@ namespace FitnessGame.IOT
         {
             var cmd = new MotorCommandPacket();
             cmd.packet[1] = 0x02; // Target: Both motors (0x02)
+            cmd.packet[2] = 0x02; // Command code
             cmd.packet[3] = 0x55; // Status: Disable
             return cmd;
         }

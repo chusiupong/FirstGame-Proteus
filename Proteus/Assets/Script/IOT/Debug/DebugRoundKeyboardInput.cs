@@ -5,7 +5,7 @@ namespace FitnessGame.IOT
     /// <summary>
     /// Debug-only keyboard adapter.
     /// Keeps test keybindings outside formal IoT service classes.
-    /// T = RoundStart, Y = RoundEnd, SPACE = toggle round state.
+    /// T = RoundStart, Y = RoundEnd,
     /// </summary>
     public class DebugRoundKeyboardInput : MonoBehaviour
     {
