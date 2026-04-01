@@ -81,7 +81,7 @@ namespace FitnessGame.IOT
         /// Action timeout in seconds
         /// If no action is performed within this time during a round, it's a MISS
         /// </summary>
-        public float ActionTimeout = 5f;
+        public float ActionTimeout = 10f;
 
         // ==================== MOTOR POWER CONTROL ====================
         
@@ -107,7 +107,7 @@ namespace FitnessGame.IOT
         /// <summary>
         /// ESP32 serial port name for motor/IMU stream, e.g. COM3.
         /// </summary>
-        public string Esp32PortName = "COM3";
+        public string Esp32PortName = "COM4";
 
         /// <summary>
         /// ESP32 serial baud rate.
@@ -150,7 +150,7 @@ namespace FitnessGame.IOT
         /// Use UDP transport for IMU input instead of serial.
         /// Expected packet format: IMU,ts,ax,ay,az,gx,gy,gz
         /// </summary>
-        public bool UseUdpImu = true;
+        public bool UseUdpImu = false;
 
         /// <summary>
         /// UDP listen port for IMU packets.

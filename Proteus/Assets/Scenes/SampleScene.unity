@@ -209,6 +209,91 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 10475836}
   m_CullTransparentMesh: 1
+--- !u!1 &96102643
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 96102645}
+  - component: {fileID: 96102644}
+  - component: {fileID: 96102646}
+  m_Layer: 0
+  m_Name: IOT_system
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &96102644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 96102643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18a8450d078c28c4f99ce20cdcd2be9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FitnessGame.IOT.FitnessManager
+  playerData:
+    level: 1
+    experience: 0
+    experienceToNextLevel: 100
+    totalMuscles:
+      deltoid: 0
+      trapezius: 0
+      latissimus: 0
+      rhomboid: 0
+      biceps: 0
+    totalActionsPerformed: 0
+    totalTrainingTime: 0
+    sessionMuscles:
+      deltoid: 0
+      trapezius: 0
+      latissimus: 0
+      rhomboid: 0
+      biceps: 0
+    sessionTime: 0
+  useMockCamera: 1
+  useMockMotor: 1
+  useMockImu: 0
+  CurrentState: 0
+--- !u!4 &96102645
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 96102643}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.08742, y: -1, z: -0.10432}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &96102646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 96102643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdbf4726c23ac184e8917b1d6ee8a214, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FitnessGame.IOT.DebugRoundKeyboardInput
+  startRoundKey: 116
+  endRoundKey: 121
+  toggleRoundKey: 114
+  autoLoopRounds: 1
+  autoLoopDelaySeconds: 1
 --- !u!1 &119581515
 GameObject:
   m_ObjectHideFlags: 0
@@ -375,6 +460,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 9100000, guid: 8bf091f4a811e45968940c1ecebb1c9c, type: 2}
     - target: {fileID: 5866666021909216657, guid: d60e311a364d843438900637424655df, type: 3}
+      propertyPath: m_AnimatePhysics
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: d60e311a364d843438900637424655df, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0
       objectReference: {fileID: 0}
@@ -383,10 +472,10 @@ PrefabInstance:
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: d60e311a364d843438900637424655df, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1228434198}
+      addedObject: {fileID: 954785524}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: d60e311a364d843438900637424655df, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 954785524}
+      addedObject: {fileID: 663874899}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d60e311a364d843438900637424655df, type: 3}
       insertIndex: -1
@@ -397,6 +486,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d60e311a364d843438900637424655df, type: 3}
       insertIndex: -1
       addedObject: {fileID: 335160799}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d60e311a364d843438900637424655df, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 335160800}
   m_SourcePrefab: {fileID: 100100000, guid: d60e311a364d843438900637424655df, type: 3}
 --- !u!1 &330585543
 GameObject:
@@ -411,6 +503,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -554,6 +647,44 @@ MonoBehaviour:
   yaw: 270
   playerLeftOffset: -1.3
   smooth: 8
+--- !u!114 &330585549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4929e332d24447bd9a6980f3037a4c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IMUCameraController
+  useIotImuInput: 1
+  allowSerialFallback: 0
+  autoAttachImuOverlay: 1
+  logMissingIotImu: 1
+  missingIotImuLogInterval: 2
+  portName: /dev/cu.usbmodem5B5F1260651
+  baudRate: 115200
+  mainCamera: {fileID: 330585545}
+  yawSensitivity: 2
+  pitchSensitivity: 2
+  smoothSpeed: 10
+  pitchLimit: 85
+  yawAxis: 2
+  pitchAxis: 1
+  invertYaw: 1
+  invertPitch: 0
+  normalizeImuValues: 1
+  accelScale: 1
+  gyroScale: 131
+  gyroOffset: {x: 0, y: 0, z: 0}
+  gyroDeadzone: 0.5
+  gyroClamp: 360
+  arrowPrefab: {fileID: 0}
+  arrowForce: 800
+  shootKey: 97
+  enableKeyboardShoot: 1
 --- !u!1 &335160793 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: d60e311a364d843438900637424655df, type: 3}
@@ -596,9 +727,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fe2278c209814b75b874923d4d79bf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
+  enableKeyboardInput: 1
+  finalizeImmediatelyOnExternalTrigger: 1
   mainBow: {fileID: 954785523}
   magicProjectile: {fileID: 6111486948785554852, guid: f7967f33aeac15f48a3732e3fd3ac36c, type: 3}
   firePoint: {fileID: 1228434198}
+  aimDirectionSource: {fileID: 1651667451}
+  handAimPreviewEffect: {fileID: 0}
+  aimHoldKey: 113
+  requireAimHoldForKeyboardRelease: 1
+  showAimGuideLine: 1
+  aimGuideLine: {fileID: 0}
+  autoCreateAimGuideLine: 1
+  aimGuideMaxDistance: 30
+  aimGuideLineWidth: 0.03
+  aimGuideStartColor: {r: 1, g: 0.95, b: 0.4, a: 0.9}
+  aimGuideEndColor: {r: 1, g: 0.4, b: 0.15, a: 0.75}
+  aimGuideHitMask:
+    serializedVersion: 2
+    m_Bits: 51
   enemyPrefab: {fileID: 919132149155446097, guid: b3293435449f84cddbf17f56b0ffdbc4, type: 3}
   spawnDistance: 5
   enemyGroundOffset: -1
@@ -640,6 +787,23 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &335160800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 335160793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1b2f1bbce561cb44ad2192e358e79f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IotActionToPlayerBridge
+  playerMovement: {fileID: 335160795}
+  imuCameraController: {fileID: 0}
+  autoStartGameOnFirstAction: 1
+  autoStartIotRoundOnTurnStart: 1
+  triggerCameraShootOnActionResolved: 0
 --- !u!1001 &367869017
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -904,6 +1068,78 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 640620857}
   m_CullTransparentMesh: 1
+--- !u!1 &663874898
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 663874899}
+  - component: {fileID: 663874900}
+  m_Layer: 0
+  m_Name: Aimpoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &663874899
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663874898}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.5, y: -0.08175, z: 0.15288}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1651667451}
+  - {fileID: 1228434198}
+  m_Father: {fileID: 335160797}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &663874900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663874898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4929e332d24447bd9a6980f3037a4c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IMUCameraController
+  useIotImuInput: 1
+  allowSerialFallback: 0
+  autoAttachImuOverlay: 1
+  logMissingIotImu: 1
+  missingIotImuLogInterval: 2
+  portName: COM4
+  baudRate: 115200
+  mainCamera: {fileID: 1651667454}
+  yawSensitivity: 54
+  pitchSensitivity: 26
+  smoothSpeed: 230
+  pitchLimit: 50
+  yawAxis: 0
+  pitchAxis: 2
+  invertYaw: 1
+  invertPitch: 1
+  normalizeImuValues: 1
+  accelScale: 1
+  gyroScale: 131
+  gyroOffset: {x: -0.13, y: 0, z: -0.11}
+  gyroDeadzone: 0
+  gyroClamp: 360
+  arrowPrefab: {fileID: 0}
+  arrowForce: 800
+  shootKey: 97
+  enableKeyboardShoot: 0
 --- !u!1 &742126451
 GameObject:
   m_ObjectHideFlags: 0
@@ -1131,6 +1367,76 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 105311525474351910, guid: ea541e1c69e914fd0be85a2a6f93878e, type: 3}
   m_PrefabInstance: {fileID: 367869017}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1009696887
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1009696889}
+  - component: {fileID: 1009696888}
+  m_Layer: 0
+  m_Name: IMU
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1009696888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1009696887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4929e332d24447bd9a6980f3037a4c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IMUCameraController
+  useIotImuInput: 1
+  allowSerialFallback: 1
+  autoAttachImuOverlay: 1
+  logMissingIotImu: 1
+  missingIotImuLogInterval: 2
+  portName: COM4
+  baudRate: 115200
+  mainCamera: {fileID: 330585545}
+  yawSensitivity: 1.9
+  pitchSensitivity: 2
+  smoothSpeed: 10
+  pitchLimit: 85
+  yawAxis: 2
+  pitchAxis: 1
+  invertYaw: 1
+  invertPitch: 0
+  normalizeImuValues: 1
+  accelScale: 1
+  gyroScale: 131
+  gyroOffset: {x: 0, y: 0, z: 0}
+  gyroDeadzone: 0.5
+  gyroClamp: 360
+  arrowPrefab: {fileID: 0}
+  arrowForce: 800
+  shootKey: 97
+  enableKeyboardShoot: 0
+--- !u!4 &1009696889
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1009696887}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.5, y: -0.08175, z: 0.15288}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1117471052
 GameObject:
   m_ObjectHideFlags: 0
@@ -1294,12 +1600,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1228434197}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0.2, z: 0.8}
+  m_LocalRotation: {x: -0, y: -0, z: 0.7071068, w: 0.7071068}
+  m_LocalPosition: {x: -0.5, y: 0.28175, z: 0.64712}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 335160797}
+  m_Father: {fileID: 663874899}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
 --- !u!1 &1511766715
 GameObject:
@@ -1376,6 +1682,143 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1511766715}
   m_CullTransparentMesh: 1
+--- !u!1 &1651667450
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1651667451}
+  - component: {fileID: 1651667454}
+  - component: {fileID: 1651667453}
+  - component: {fileID: 1651667452}
+  m_Layer: 0
+  m_Name: Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1651667451
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651667450}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 663874899}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1651667452
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651667450}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
+--- !u!81 &1651667453
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651667450}
+  m_Enabled: 0
+--- !u!20 &1651667454
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651667450}
+  m_Enabled: 0
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
 --- !u!1 &1652281614
 GameObject:
   m_ObjectHideFlags: 0
@@ -1603,3 +2046,5 @@ SceneRoots:
   - {fileID: 2048169560}
   - {fileID: 1652281617}
   - {fileID: 2130080655}
+  - {fileID: 96102645}
+  - {fileID: 1009696889}

@@ -29,8 +29,8 @@ namespace FitnessGame.IOT
 
         public float EvaluateActionQuality(CameraData camera, MotorData motor, IMUData imu)
         {
-            float imuScore01 = EvaluateImuScore01(imu);
-            return EvaluateActionQuality(camera, motor, imuScore01);
+            // IMU is intentionally ignored for action scoring to avoid affecting gameplay triggers.
+            return EvaluateActionQuality(camera, motor, 1f);
         }
 
         /// <summary>

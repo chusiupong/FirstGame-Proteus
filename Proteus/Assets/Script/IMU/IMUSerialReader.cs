@@ -4,6 +4,13 @@ using FitnessGame.IOT;
 
 public class IMUCameraController : MonoBehaviour
 {
+    public enum GyroAxis
+    {
+        X,
+        Y,
+        Z
+    }
+
     [Header("Input Source")]
     public bool useIotImuInput = true;
     public bool allowSerialFallback = true;
@@ -30,6 +37,12 @@ public class IMUCameraController : MonoBehaviour
     public float smoothSpeed = 10f;
     public float pitchLimit = 85f;
 
+    [Header("Axis Mapping")]
+    public GyroAxis yawAxis = GyroAxis.Z;
+    public GyroAxis pitchAxis = GyroAxis.Y;
+    public bool invertYaw = true;
+    public bool invertPitch = false;
+
     [Header("IMU Tuning")]
     public bool normalizeImuValues = true;
     public float accelScale = 1f;
@@ -45,7 +58,7 @@ public class IMUCameraController : MonoBehaviour
     public GameObject arrowPrefab;
     public float arrowForce = 800f;
     public KeyCode shootKey = KeyCode.A;
-    public bool enableKeyboardShoot = true;
+    public bool enableKeyboardShoot = false;
 
     private SerialPort serial;
     private float ax, ay, az;
@@ -133,6 +146,7 @@ public class IMUCameraController : MonoBehaviour
         gy = gyro.y;
         gz = gyro.z;
 
+        PrepareImuForControl();
         ApplyRotationFromImu();
         return true;
     }
@@ -229,12 +243,32 @@ public class IMUCameraController : MonoBehaviour
 
     void ApplyRotationFromImu()
     {
-        // INVERTED AXES (PERFECT FOR YOUR CONTROLS)
-        yaw -= gz * yawSensitivity * Time.deltaTime;
-        pitch += gy * pitchSensitivity * Time.deltaTime;
+        float yawInput = GetAxisValue(yawAxis);
+        float pitchInput = GetAxisValue(pitchAxis);
+
+        if (invertYaw)
+            yawInput = -yawInput;
+        if (invertPitch)
+            pitchInput = -pitchInput;
+
+        yaw += yawInput * yawSensitivity * Time.deltaTime;
+        pitch += pitchInput * pitchSensitivity * Time.deltaTime;
 
         pitch = Mathf.Clamp(pitch, -pitchLimit, pitchLimit);
         targetRot = Quaternion.Euler(pitch, yaw, 0);
+    }
+
+    float GetAxisValue(GyroAxis axis)
+    {
+        switch (axis)
+        {
+            case GyroAxis.X:
+                return gx;
+            case GyroAxis.Y:
+                return gy;
+            default:
+                return gz;
+        }
     }
 
     void UpdateCamera()

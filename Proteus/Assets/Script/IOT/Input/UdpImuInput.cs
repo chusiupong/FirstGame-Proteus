@@ -21,6 +21,13 @@ namespace FitnessGame.IOT
 
         private IMUData latestImu = new IMUData();
         private float lastReceiveTime;
+        private int packetCount;
+        private int validImuLineCount;
+        private int invalidLineCount;
+        private float nextStatsLogTime;
+        private string lastInvalidLine = "";
+        private bool hasLoggedSender;
+        private string lastSender = "";
 
         public UdpImuInput(int listenPort, float staleSeconds)
         {
@@ -39,6 +46,13 @@ namespace FitnessGame.IOT
                 udpClient.Client.Blocking = false;
                 initialized = true;
                 lastReceiveTime = 0f;
+                packetCount = 0;
+                validImuLineCount = 0;
+                invalidLineCount = 0;
+                nextStatsLogTime = Time.unscaledTime + 2f;
+                lastInvalidLine = "";
+                hasLoggedSender = false;
+                lastSender = "";
                 Debug.Log($"[IOT][UDP-IMU] Listening on 0.0.0.0:{listenPort}");
             }
             catch (Exception ex)
@@ -104,6 +118,14 @@ namespace FitnessGame.IOT
                     if (bytes == null || bytes.Length == 0)
                         continue;
 
+                    packetCount++;
+                    lastSender = $"{remote.Address}:{remote.Port}";
+                    if (!hasLoggedSender)
+                    {
+                        hasLoggedSender = true;
+                        Debug.Log($"[IOT][UDP-IMU] First packet from {lastSender}");
+                    }
+
                     string packet = Encoding.UTF8.GetString(bytes);
                     if (string.IsNullOrWhiteSpace(packet))
                         continue;
@@ -114,6 +136,8 @@ namespace FitnessGame.IOT
                         ApplyIncomingLine(lines[i].Trim());
                     }
                 }
+
+                MaybeLogStats();
             }
             catch (SocketException ex)
             {
@@ -129,15 +153,41 @@ namespace FitnessGame.IOT
 
         private void ApplyIncomingLine(string line)
         {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            // Some senders may include null bytes or prepend garbage before IMU frame.
+            line = line.Replace("\0", string.Empty).Trim();
+            int imuStart = line.IndexOf("IMU,", StringComparison.OrdinalIgnoreCase);
+            if (imuStart > 0)
+                line = line.Substring(imuStart);
+
             string[] parts = line.Split(',');
             if (parts.Length < 8)
+            {
+                invalidLineCount++;
+                lastInvalidLine = line;
                 return;
+            }
 
             if (!parts[0].Trim().Equals("IMU", StringComparison.OrdinalIgnoreCase))
+            {
+                invalidLineCount++;
+                lastInvalidLine = line;
                 return;
+            }
 
-            if (!uint.TryParse(parts[1], out _))
+            bool tsValid = uint.TryParse(parts[1], out _);
+            if (!tsValid)
+            {
+                tsValid = float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out _);
+            }
+            if (!tsValid)
+            {
+                invalidLineCount++;
+                lastInvalidLine = line;
                 return;
+            }
 
             if (TryParse(parts[2], out float ax) &&
                 TryParse(parts[3], out float ay) &&
@@ -148,7 +198,41 @@ namespace FitnessGame.IOT
             {
                 latestImu = new IMUData(new Vector3(ax, ay, az), new Vector3(gx, gy, gz));
                 lastReceiveTime = Time.time;
+                validImuLineCount++;
+                return;
             }
+
+            invalidLineCount++;
+            lastInvalidLine = line;
+        }
+
+        private void MaybeLogStats()
+        {
+            if (Time.unscaledTime < nextStatsLogTime)
+                return;
+
+            nextStatsLogTime = Time.unscaledTime + 2f;
+
+            if (packetCount == 0)
+            {
+                float age = Time.time - lastReceiveTime;
+                Debug.LogWarning($"[IOT][UDP-IMU] No UDP packet received in last 2s on port {listenPort}. StreamAge={age:F2}s");
+                return;
+            }
+
+            if (validImuLineCount > 0)
+            {
+                Debug.Log($"[IOT][UDP-IMU] RX ok packets={packetCount} validLines={validImuLineCount} invalidLines={invalidLineCount}");
+            }
+            else
+            {
+                Debug.LogWarning($"[IOT][UDP-IMU] RX packets={packetCount} but no valid IMU line. Last invalid: {lastInvalidLine}");
+            }
+
+            packetCount = 0;
+            validImuLineCount = 0;
+            invalidLineCount = 0;
+            lastInvalidLine = "";
         }
 
         private static bool TryParse(string text, out float value)

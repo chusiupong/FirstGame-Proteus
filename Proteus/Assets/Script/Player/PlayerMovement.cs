@@ -16,6 +16,22 @@ public class PlayerMovement : MonoBehaviour
     public GameObject magicProjectile;
     public Transform firePoint;
 
+    [Header("Aiming")]
+    public Transform aimDirectionSource;
+    public GameObject handAimPreviewEffect;
+    public KeyCode aimHoldKey = KeyCode.Q;
+    public bool requireAimHoldForKeyboardRelease = true;
+
+    [Header("Aim Guide")]
+    public bool showAimGuideLine = true;
+    public LineRenderer aimGuideLine;
+    public bool autoCreateAimGuideLine = true;
+    public float aimGuideMaxDistance = 30f;
+    public float aimGuideLineWidth = 0.03f;
+    public Color aimGuideStartColor = new Color(1f, 0.95f, 0.4f, 0.9f);
+    public Color aimGuideEndColor = new Color(1f, 0.4f, 0.15f, 0.75f);
+    public LayerMask aimGuideHitMask = Physics.DefaultRaycastLayers;
+
     [Header("Enemy")]
     public GameObject enemyPrefab;
     public float spawnDistance = 5f;
@@ -53,12 +69,15 @@ public class PlayerMovement : MonoBehaviour
     private float targetFill;
     private Color targetColor;
     private GameObject currentEnemy;
+    private bool isAimHeld;
 
     void Awake()
     {
         anim = GetComponent<Animator>();
         if (mainBow != null) mainBow.SetActive(false);
         if (shootingCircleIcon != null) shootingCircleIcon.SetActive(false);
+        EnsureAimGuideLine();
+        SetAimGuideVisible(false);
     }
 
     void Start()
@@ -80,12 +99,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (!canAct) return;
 
+        UpdateAimHoldState();
+
         currentTime -= Time.deltaTime;
         timerBar.rectTransform.localScale = new Vector3(Mathf.Clamp01(currentTime / turnDuration), 1, 1);
 
-        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.F)) SetIntensity(1, color1Star);
-        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.G)) SetIntensity(2, color2Star);
-        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.H)) SetIntensity(3, color3Star);
+        HandleKeyboardIntensityInput();
 
         intensityBar.rectTransform.localScale = Vector3.Lerp(
             intensityBar.rectTransform.localScale,
@@ -97,6 +116,121 @@ public class PlayerMovement : MonoBehaviour
 
         if (currentTime <= 0)
             FinalizeTurn();
+    }
+
+    void UpdateAimHoldState()
+    {
+        bool shouldHoldAim = enableKeyboardInput && Input.GetKey(aimHoldKey);
+        if (shouldHoldAim == isAimHeld)
+        {
+            if (isAimHeld)
+            {
+                SyncFirePointToAimDirection();
+                UpdateAimGuideLine();
+            }
+            return;
+        }
+
+        isAimHeld = shouldHoldAim;
+
+        if (handAimPreviewEffect != null)
+            handAimPreviewEffect.SetActive(isAimHeld);
+
+        SetAimGuideVisible(isAimHeld && showAimGuideLine);
+
+        if (isAimHeld)
+        {
+            SyncFirePointToAimDirection();
+            UpdateAimGuideLine();
+        }
+    }
+
+    void EnsureAimGuideLine()
+    {
+        if (aimGuideLine != null || !autoCreateAimGuideLine)
+            return;
+
+        GameObject lineObj = new GameObject("AimGuideLine");
+        lineObj.transform.SetParent(transform, false);
+        aimGuideLine = lineObj.AddComponent<LineRenderer>();
+        aimGuideLine.positionCount = 2;
+        aimGuideLine.material = new Material(Shader.Find("Sprites/Default"));
+    }
+
+    void SetAimGuideVisible(bool visible)
+    {
+        if (aimGuideLine == null)
+            return;
+
+        aimGuideLine.enabled = visible;
+    }
+
+    void UpdateAimGuideLine()
+    {
+        if (!showAimGuideLine || aimGuideLine == null)
+            return;
+
+        Transform originTransform = firePoint != null ? firePoint : transform;
+        Transform directionTransform = aimDirectionSource != null ? aimDirectionSource : originTransform;
+
+        Vector3 start = originTransform.position;
+        Vector3 direction = directionTransform.forward;
+        if (direction.sqrMagnitude < 0.0001f)
+            direction = transform.forward;
+
+        direction.Normalize();
+        Vector3 end = start + direction * Mathf.Max(1f, aimGuideMaxDistance);
+
+        if (Physics.Raycast(start, direction, out RaycastHit hit, Mathf.Max(1f, aimGuideMaxDistance), aimGuideHitMask, QueryTriggerInteraction.Ignore))
+            end = hit.point;
+
+        aimGuideLine.positionCount = 2;
+        aimGuideLine.useWorldSpace = true;
+        aimGuideLine.startWidth = aimGuideLineWidth;
+        aimGuideLine.endWidth = aimGuideLineWidth * 0.6f;
+        aimGuideLine.startColor = aimGuideStartColor;
+        aimGuideLine.endColor = aimGuideEndColor;
+        aimGuideLine.SetPosition(0, start);
+        aimGuideLine.SetPosition(1, end);
+    }
+
+    void HandleKeyboardIntensityInput()
+    {
+        if (!enableKeyboardInput)
+            return;
+
+        HandleIntensityKey(KeyCode.Alpha1, KeyCode.F, 1, color1Star);
+        HandleIntensityKey(KeyCode.Alpha2, KeyCode.G, 2, color2Star);
+        HandleIntensityKey(KeyCode.Alpha3, KeyCode.H, 3, color3Star);
+    }
+
+    void HandleIntensityKey(KeyCode alphaKey, KeyCode fallbackKey, int level, Color color)
+    {
+        bool down = Input.GetKeyDown(alphaKey) || Input.GetKeyDown(fallbackKey);
+        bool up = Input.GetKeyUp(alphaKey) || Input.GetKeyUp(fallbackKey);
+
+        if (down)
+            SetIntensity(level, color);
+
+        if (!up)
+            return;
+
+        if (requireAimHoldForKeyboardRelease && !isAimHeld)
+            return;
+
+        if (isAimHeld)
+            SyncFirePointToAimDirection();
+
+        FinalizeTurn();
+    }
+
+    void SyncFirePointToAimDirection()
+    {
+        if (aimDirectionSource == null)
+            return;
+
+        if (firePoint != null)
+            firePoint.rotation = Quaternion.LookRotation(aimDirectionSource.forward, Vector3.up);
     }
 
     public void TriggerExternalStartGame()
@@ -139,6 +273,9 @@ public class PlayerMovement : MonoBehaviour
 
         // Keep IoT round and UI timer in sync from the first visible turn.
         ResetTurn();
+
+        if (aimDirectionSource == null && Camera.main != null)
+            aimDirectionSource = Camera.main.transform;
     }
 
     void SetIntensity(int level, Color color)
@@ -194,7 +331,13 @@ public class PlayerMovement : MonoBehaviour
     void SpawnArrow()
     {
         if (magicProjectile && firePoint)
-            Instantiate(magicProjectile, firePoint.position, firePoint.rotation);
+        {
+            Quaternion spawnRotation = firePoint.rotation;
+            if (aimDirectionSource != null)
+                spawnRotation = Quaternion.LookRotation(aimDirectionSource.forward, Vector3.up);
+
+            Instantiate(magicProjectile, firePoint.position, spawnRotation);
+        }
 
         if (currentEnemy != null)
         {
@@ -255,6 +398,7 @@ public class PlayerMovement : MonoBehaviour
     void ResetTurn()
     {
         canAct = true;
+        isAimHeld = false;
         currentTime = turnDuration;
         currentIntensity = 0;
         targetFill = 0f;
@@ -266,6 +410,11 @@ public class PlayerMovement : MonoBehaviour
 
         if (shootingCircleIcon != null)
             shootingCircleIcon.SetActive(false);
+
+        if (handAimPreviewEffect != null)
+            handAimPreviewEffect.SetActive(false);
+
+        SetAimGuideVisible(false);
 
         if (gameStarted)
             OnTurnStarted?.Invoke();
