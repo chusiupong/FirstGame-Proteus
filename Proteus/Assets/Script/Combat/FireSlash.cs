@@ -12,7 +12,7 @@ public class FireSlash : MonoBehaviour
 
     void Start()
     {
-        transform.Rotate(0, 0, 90);
+        transform.Rotate(0, 0, 0);
         Destroy(gameObject, lifetime);
 
         // Start moving AFTER delay
@@ -31,13 +31,5 @@ public class FireSlash : MonoBehaviour
         canMove = true;
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Enemy"))
-        {
-            EnemyStats enemy = other.GetComponent<EnemyStats>();
-            if (enemy != null) enemy.TakeDamage(damage);
-            Destroy(gameObject);
-        }
-    }
+ 
 }
