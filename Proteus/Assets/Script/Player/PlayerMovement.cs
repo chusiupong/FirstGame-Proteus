@@ -1,9 +1,16 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
 public class PlayerMovement : MonoBehaviour
 {
+    public event Action OnTurnStarted;
+
+    [Header("Input Source")]
+    public bool enableKeyboardInput = true;
+    public bool finalizeImmediatelyOnExternalTrigger = true;
+
     [Header("Bow Attack")]
     public GameObject mainBow;
     public GameObject magicProjectile;
@@ -63,7 +70,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!gameStarted)
         {
-            if (Input.GetKeyDown(KeyCode.P))
+            if (enableKeyboardInput && Input.GetKeyDown(KeyCode.P))
                 StartGame();
             return;
         }
@@ -76,9 +83,9 @@ public class PlayerMovement : MonoBehaviour
         currentTime -= Time.deltaTime;
         timerBar.rectTransform.localScale = new Vector3(Mathf.Clamp01(currentTime / turnDuration), 1, 1);
 
-        if (Input.GetKeyDown(KeyCode.F)) SetIntensity(1, color1Star);
-        if (Input.GetKeyDown(KeyCode.G)) SetIntensity(2, color2Star);
-        if (Input.GetKeyDown(KeyCode.H)) SetIntensity(3, color3Star);
+        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.F)) SetIntensity(1, color1Star);
+        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.G)) SetIntensity(2, color2Star);
+        if (enableKeyboardInput && Input.GetKeyDown(KeyCode.H)) SetIntensity(3, color3Star);
 
         intensityBar.rectTransform.localScale = Vector3.Lerp(
             intensityBar.rectTransform.localScale,
@@ -92,11 +99,46 @@ public class PlayerMovement : MonoBehaviour
             FinalizeTurn();
     }
 
+    public void TriggerExternalStartGame()
+    {
+        if (gameStarted)
+            return;
+
+        StartGame();
+    }
+
+    public void TriggerExternalByQuality(float qualityScore)
+    {
+        if (!gameStarted || !canAct)
+            return;
+
+        int intensity = MapQualityToIntensity(qualityScore);
+        if (intensity <= 0)
+            return;
+
+        TriggerExternalIntensity(intensity);
+    }
+
+    public void TriggerExternalIntensity(int intensity)
+    {
+        if (!gameStarted || !canAct)
+            return;
+
+        int clamped = Mathf.Clamp(intensity, 1, 3);
+        SetIntensity(clamped, GetIntensityColor(clamped));
+
+        if (finalizeImmediatelyOnExternalTrigger)
+            FinalizeTurn();
+    }
+
     void StartGame()
     {
         gameStarted = true;
         startMenu.SetActive(false);
         SpawnNewEnemy();
+
+        // Keep IoT round and UI timer in sync from the first visible turn.
+        ResetTurn();
     }
 
     void SetIntensity(int level, Color color)
@@ -105,6 +147,21 @@ public class PlayerMovement : MonoBehaviour
         targetFill = currentIntensity / 3f;
         targetColor = color;
         if (shootingCircleIcon != null) shootingCircleIcon.SetActive(true);
+    }
+
+    int MapQualityToIntensity(float qualityScore)
+    {
+        if (qualityScore >= 75f) return 3;
+        if (qualityScore >= 55f) return 2;
+        if (qualityScore >= 35f) return 1;
+        return 0;
+    }
+
+    Color GetIntensityColor(int intensity)
+    {
+        if (intensity == 3) return color3Star;
+        if (intensity == 2) return color2Star;
+        return color1Star;
     }
 
     void FinalizeTurn()
@@ -207,6 +264,10 @@ public class PlayerMovement : MonoBehaviour
         intensityBar.rectTransform.localScale = new Vector3(0f, 1, 1);
         intensityBar.color = color1Star;
 
-        shootingCircleIcon.SetActive(false);
+        if (shootingCircleIcon != null)
+            shootingCircleIcon.SetActive(false);
+
+        if (gameStarted)
+            OnTurnStarted?.Invoke();
     }
 }

@@ -1,8 +1,18 @@
 using System.IO.Ports;
 using UnityEngine;
+using FitnessGame.IOT;
 
 public class IMUCameraController : MonoBehaviour
 {
+    [Header("Input Source")]
+    public bool useIotImuInput = true;
+    public bool allowSerialFallback = true;
+
+    [Header("Debug")]
+    public bool autoAttachImuOverlay = true;
+    public bool logMissingIotImu = true;
+    public float missingIotImuLogInterval = 2f;
+
     // ==========================
     // SERIAL SETTINGS
     // ==========================
@@ -20,6 +30,14 @@ public class IMUCameraController : MonoBehaviour
     public float smoothSpeed = 10f;
     public float pitchLimit = 85f;
 
+    [Header("IMU Tuning")]
+    public bool normalizeImuValues = true;
+    public float accelScale = 1f;
+    public float gyroScale = 131f;
+    public Vector3 gyroOffset = Vector3.zero;
+    public float gyroDeadzone = 0.5f;
+    public float gyroClamp = 360f;
+
     // ==========================
     // ARROW SHOOTING
     // ==========================
@@ -27,6 +45,7 @@ public class IMUCameraController : MonoBehaviour
     public GameObject arrowPrefab;
     public float arrowForce = 800f;
     public KeyCode shootKey = KeyCode.A;
+    public bool enableKeyboardShoot = true;
 
     private SerialPort serial;
     private float ax, ay, az;
@@ -35,18 +54,31 @@ public class IMUCameraController : MonoBehaviour
     private float yaw;
     private float pitch;
     private Quaternion targetRot;
+    private float nextMissingLogTime;
 
     void Start()
     {
         if (mainCamera == null) mainCamera = Camera.main;
-        InitializeSerialPort();
+        if (!useIotImuInput)
+            InitializeSerialPort();
+
+        if (autoAttachImuOverlay)
+            EnsureImuOverlay();
+
         yaw = mainCamera.transform.eulerAngles.y;
         pitch = mainCamera.transform.eulerAngles.x;
+        targetRot = mainCamera.transform.rotation;
     }
 
     void Update()
     {
-        ReadIMU();
+        bool hasIotImu = false;
+        if (useIotImuInput)
+            hasIotImu = ReadIMUFromIot();
+
+        if (!hasIotImu && (!useIotImuInput || allowSerialFallback))
+            ReadIMUFromSerial();
+
         UpdateCamera();
         HandleShoot();
     }
@@ -70,7 +102,67 @@ public class IMUCameraController : MonoBehaviour
         }
     }
 
-    void ReadIMU()
+    bool ReadIMUFromIot()
+    {
+        FitnessManager manager = FitnessManager.Instance;
+        if (manager == null)
+        {
+            LogMissingIotImu("FitnessManager is null");
+            return false;
+        }
+
+        manager.GetLatestRawInputs(out _, out _, out IMUData imu);
+        if (imu == null)
+        {
+            LogMissingIotImu("IMUData is null");
+            return false;
+        }
+
+        Vector3 gyro = imu.gyroscope;
+        if (gyro.sqrMagnitude < 0.0001f)
+        {
+            LogMissingIotImu("IMU gyroscope is near zero (no packet yet or stale stream)");
+            return false;
+        }
+
+        ax = imu.acceleration.x;
+        ay = imu.acceleration.y;
+        az = imu.acceleration.z;
+
+        gx = gyro.x;
+        gy = gyro.y;
+        gz = gyro.z;
+
+        ApplyRotationFromImu();
+        return true;
+    }
+
+    void EnsureImuOverlay()
+    {
+        if (mainCamera == null)
+            return;
+
+        ImuDebugOverlay overlay = mainCamera.GetComponent<ImuDebugOverlay>();
+        if (overlay == null)
+            overlay = mainCamera.gameObject.AddComponent<ImuDebugOverlay>();
+
+        if (overlay.fitnessManager == null)
+            overlay.fitnessManager = FitnessManager.Instance;
+    }
+
+    void LogMissingIotImu(string reason)
+    {
+        if (!logMissingIotImu)
+            return;
+
+        if (Time.unscaledTime < nextMissingLogTime)
+            return;
+
+        nextMissingLogTime = Time.unscaledTime + Mathf.Max(0.2f, missingIotImuLogInterval);
+        Debug.LogWarning($"[IMU][Camera] IoT IMU not available: {reason}");
+    }
+
+    void ReadIMUFromSerial()
     {
         if (serial == null || !serial.IsOpen) return;
 
@@ -94,6 +186,49 @@ public class IMUCameraController : MonoBehaviour
         float.TryParse(v[6], out gy);
         float.TryParse(v[7], out gz);
 
+        PrepareImuForControl();
+
+        ApplyRotationFromImu();
+    }
+
+    void PrepareImuForControl()
+    {
+        if (normalizeImuValues)
+        {
+            float accDiv = Mathf.Max(0.0001f, accelScale);
+            float gyroDiv = Mathf.Max(0.0001f, gyroScale);
+
+            ax /= accDiv;
+            ay /= accDiv;
+            az /= accDiv;
+
+            gx /= gyroDiv;
+            gy /= gyroDiv;
+            gz /= gyroDiv;
+        }
+
+        gx -= gyroOffset.x;
+        gy -= gyroOffset.y;
+        gz -= gyroOffset.z;
+
+        gx = ApplyDeadzone(gx, gyroDeadzone);
+        gy = ApplyDeadzone(gy, gyroDeadzone);
+        gz = ApplyDeadzone(gz, gyroDeadzone);
+
+        float clampAbs = Mathf.Max(1f, gyroClamp);
+        gx = Mathf.Clamp(gx, -clampAbs, clampAbs);
+        gy = Mathf.Clamp(gy, -clampAbs, clampAbs);
+        gz = Mathf.Clamp(gz, -clampAbs, clampAbs);
+    }
+
+    float ApplyDeadzone(float value, float deadzone)
+    {
+        float dz = Mathf.Max(0f, deadzone);
+        return Mathf.Abs(value) < dz ? 0f : value;
+    }
+
+    void ApplyRotationFromImu()
+    {
         // INVERTED AXES (PERFECT FOR YOUR CONTROLS)
         yaw -= gz * yawSensitivity * Time.deltaTime;
         pitch += gy * pitchSensitivity * Time.deltaTime;
@@ -113,21 +248,32 @@ public class IMUCameraController : MonoBehaviour
 
     void HandleShoot()
     {
-        if (Input.GetKeyDown(shootKey) && arrowPrefab != null)
-        {
-            Vector3 spawn = mainCamera.transform.position + mainCamera.transform.forward * 0.5f;
-            GameObject arrow = Instantiate(arrowPrefab, spawn, mainCamera.transform.rotation);
+        if (enableKeyboardShoot && Input.GetKeyDown(shootKey))
+            TriggerExternalShoot();
+    }
 
-            Rigidbody rb = arrow.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.AddForce(mainCamera.transform.forward * arrowForce);
-            }
+    public void TriggerExternalShoot()
+    {
+        if (arrowPrefab == null || mainCamera == null)
+            return;
+
+        Vector3 spawn = mainCamera.transform.position + mainCamera.transform.forward * 0.5f;
+        GameObject arrow = Instantiate(arrowPrefab, spawn, mainCamera.transform.rotation);
+
+        Rigidbody rb = arrow.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.AddForce(mainCamera.transform.forward * arrowForce);
         }
     }
 
     void OnApplicationQuit()
+    {
+        if (serial != null && serial.IsOpen) serial.Close();
+    }
+
+    void OnDestroy()
     {
         if (serial != null && serial.IsOpen) serial.Close();
     }
