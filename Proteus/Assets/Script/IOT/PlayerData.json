@@ -1,0 +1,15 @@
+{
+  "level": 1,
+  "experience": 0.0,
+  "experienceToNextLevel": 100.0,
+  "totalMuscles": {
+    "deltoid": 0.0,
+    "trapezius": 0.0,
+    "latissimus": 0.0,
+    "rhomboid": 0.0,
+    "biceps": 0.0
+  },
+  "totalActionsPerformed": 0,
+  "totalTrainingTime": 0.0,
+  "lastSaveTime": "2026-03-11T00:00:00Z"
+}

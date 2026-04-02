@@ -19,20 +19,6 @@ public class Projectile : MonoBehaviour
         transform.Translate(Vector3.forward * speed * Time.deltaTime);
     }
 
-    // When hit something
-    void OnTriggerEnter(Collider other)
-    {
-        // If hit enemy → deal damage
-        if (other.CompareTag("Enemy"))
-        {
-            EnemyStats enemy = other.GetComponent<EnemyStats>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(damage);
-            }
-
-            // Destroy bullet when hit
-            Destroy(gameObject);
-        }
-    }
+   
+   
 }
